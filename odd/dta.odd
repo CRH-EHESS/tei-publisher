@@ -3,8 +3,7 @@
     <teiHeader>
         <fileDesc>
             <titleStmt>
-                <title>Deutsches Textarchiv (dta) (Custom ODD)
-                    <desc>A simple ODD to render documents encoded according to the <ref target="https://www.deutschestextarchiv.de/doku/basisformat/">DTA base format</ref></desc></title>
+                <title>Deutsches Textarchiv (dta) (Custom ODD)</title>
                 <title type="short">Deutsches Textarchiv</title>
             </titleStmt>
             <publicationStmt>
@@ -55,19 +54,24 @@
         </model>
                     <model behaviour="webcomponent">
             <param name="name" value="'pb-facs-link'"/>
-            <param name="emit" value="'transcription'"/>
             <param name="facs" value="let $name := replace(util:document-name($parameters?root), '^([^\.]+)\..*$', '$1') return  ``[`{$name}`/`{$name}`_`{substring-after(@facs, '#f')}`_800px.jpg]``"/>
         </model>
                 </elementSpec>
                 <elementSpec ident="fw" mode="change">
-                    <model output="print" predicate="@place='top'" behaviour="inline" cssClass="running">
-            <param name="content" value="string(.)"/>
-        </model>
                     <model output="web" predicate="@place='top' and $parameters?view='page'" behaviour="inline">
             <outputRendition xml:space="preserve">
-            display: inline-block;
+            
+            
+            
+                            
+                            display: inline-block;
+                            margin-top: .5em;
                             margin-bottom: 1em;
                             color: #CCC;
+                            
+                        
+            
+            
             </outputRendition>
         </model>
                     <model output="web" predicate="@type='sig' and $parameters?view='page'" behaviour="block">

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?teipublisher template="osinski.html" odd="osinski.odd" view="page" media="epub print"?>
-<TEI xmlns="http://www.tei-c.org/ns/1.0" n="Ca">
+<?teipublisher template="osinski.html" odd="osinski.odd" view="page"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
    <teiHeader>
       <fileDesc>
          <titleStmt>
@@ -28,15 +28,9 @@
          </sourceDesc>
       </fileDesc>
       <profileDesc>
-         <abstract>
-            <p>A manuscript collocative dictionary of Polish <hi>Bogactwa mowy polskiej</hi> featuring interactive highlights for regions of interest of the facsimile when hovering over dictionary headwords. Internal composition is based on the entryFree element with a rich microstructure.</p>
-         </abstract>
          <textClass>
             <catRef scheme="#genre" target="#lexicography"/>
             <catRef scheme="#form" target="#manuscript"/>
-            <catRef scheme="#feature" target="#ltr"/>
-            <catRef scheme="#feature" target="#image"/>
-            <catRef scheme="#period" target="#modern"/>
          </textClass>
          <langUsage>
             <language ident="pl">Polish</language>

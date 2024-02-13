@@ -1,6 +1,6 @@
-module namespace pml='http://www.tei-c.org/pm/models/annotations/print/module';
+module namespace pml='http://www.tei-c.org/pm/models/annotations/fo/module';
 
-import module namespace m='http://www.tei-c.org/pm/models/annotations/print' at 'annotations-print.xql';
+import module namespace m='http://www.tei-c.org/pm/models/annotations/fo' at '/db/apps/tei-publisher/transform/annotations-print.xql';
 
 (: Generated library module to be directly imported into code which
  : needs to transform TEI nodes using the ODD this module is based on.

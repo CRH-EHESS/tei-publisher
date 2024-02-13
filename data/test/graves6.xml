@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?teipublisher odd="graves.odd" template="letter.html" media="latex epub print fo"?>
-<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:xi="http://www.w3.org/2001/XInclude" n="Ca">
+<?teipublisher odd="graves.odd" template="letter.html"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xmlns:xi="http://www.w3.org/2001/XInclude">
     <teiHeader>
         <fileDesc>
             <titleStmt>
@@ -53,19 +53,8 @@
             </sourceDesc>
         </fileDesc>
         <profileDesc>
-            <abstract>
-                <p>A 20th century manuscript letter from Robert Graves where emphasis has been put on visualizing rich encoding 
-                    of semantic information in the letter, in particular geographic and prosopographical data. The map is displayed with a <code>pb-leaflet</code> component.</p>
-             </abstract>
             <textClass>
                 <catRef scheme="#genre" target="#correspondence"/>
-                <catRef scheme="#form" target="#manuscript"/>
-                <catRef scheme="#feature" target="#pages"/>
-                <catRef scheme="#feature" target="#person"/>
-                <catRef scheme="#feature" target="#place"/>
-                <catRef scheme="#feature" target="#map"/>
-                <catRef scheme="#feature" target="#ltr"/>
-                <catRef scheme="#period" target="#modern"/>
             </textClass>
             <langUsage>
                 <language ident="en">English</language>

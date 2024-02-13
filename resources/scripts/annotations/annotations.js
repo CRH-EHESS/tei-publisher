@@ -5,6 +5,7 @@
  * You should not need to change this unless you want to add new features.
  */
 
+
 function disableButtons(disable, range) {
 	document.querySelectorAll(".annotation-action:not([data-type=edit])").forEach((button) => {
 		button.disabled = disable;
@@ -84,49 +85,13 @@ window.addEventListener("WebComponentsReady", () => {
 	const occurDiv = document.getElementById("occurrences");
 	const occurrences = occurDiv.querySelector("ul");
 	const saveBtn = document.getElementById("form-save");
-	const refInput = document.querySelectorAll(".form-ref");
-	const nerDialog = document.getElementById("ner-dialog");
+	const refInput = document.getElementById("form-ref");
+	const authorityInfo = document.getElementById("authority-info");
+	const authorityDialog = document.getElementById("authority-dialog");
 	let autoSave = false;
 	let type = "";
-	let emptyElement = false;
 	let text = "";
 	let enablePreview = true;
-	let currentEntityInfo = null;
-	let previewOdd = "teipublisher";
-	const doc = view.getDocument();
-	
-	function restoreAnnotations(doc, annotations) {
-		console.log('loading annotations from local storage: %o', annotations);
-		view.annotations = annotations;
-		const history = window.localStorage.getItem(`tei-publisher.annotations.${doc.path}.history`);
-		if (history) {
-			view.clearHistory(JSON.parse(history));
-		}
-		window.localStorage.removeItem(`tei-publisher.annotations.${doc.path}`);
-		window.localStorage.removeItem(`tei-publisher.annotations.${doc.path}.history`);
-		preview(annotations);
-	}
-
-	// check if annotations were saved to local storage
-	pbEvents.subscribe('pb-annotations-loaded', 'transcription', () => {
-		if (doc && doc.path) {
-			const ranges = window.localStorage.getItem(`tei-publisher.annotations.${doc.path}`);
-			if (ranges) {
-				const annotations = JSON.parse(ranges);
-				if (annotations.length > 0) {
-					const params = new URL(document.location).searchParams;
-					if (params.has('apply')) {
-						restoreAnnotations(doc, annotations);
-					} else {
-						document.getElementById('restore-dialog').confirm()
-						.then(() => {
-							restoreAnnotations(doc, annotations);
-						});
-					}
-				}
-			}
-		}
-	});
 
 	/**
 	 * Display the main form
@@ -165,8 +130,6 @@ window.addEventListener("WebComponentsReady", () => {
 	}
 
 	function hideForm() {
-		window.pbEvents.emit("hide-all-panels", {});
-
 		form.style.display = "none";
 		occurDiv.style.display = "none";
 	}
@@ -176,8 +139,9 @@ window.addEventListener("WebComponentsReady", () => {
 	 *
 	 * @param {any} data details of the selected authority entry
 	 */
-	function authoritySelected(ref) {
-		refInput.forEach((input) => { input.value = ref });
+	function authoritySelected(data) {
+		authorityDialog.close();
+		refInput.value = data.properties.ref;
 		if (autoSave) {
 			save();
 		}
@@ -227,16 +191,14 @@ window.addEventListener("WebComponentsReady", () => {
 			strings = [text];
 		}
 		try {
-			const key = view.getKey(type);
 			const occur = view.search(type, strings);
 			occurrences.innerHTML = "";
-			document.querySelector('#occurrences .messages').innerHTML = '';
 			occur.forEach((o) => {
 				const li = document.createElement("li");
 				const cb = document.createElement("paper-checkbox");
 				cb._options = o;
 				cb._info = info;
-				if (o.annotated && o[key] === info.id) {
+				if (o.annotated && o[view.key] === info.id) {
 					cb.setAttribute("checked", "checked");
 				}
 				cb.addEventListener("click", () => {
@@ -248,7 +210,7 @@ window.addEventListener("WebComponentsReady", () => {
 
 				li.appendChild(cb);
 				const span = document.createElement("span");
-				if (info.id && o[key] && o[key] !== info.id) {
+				if (info.id && o[view.key] && o[view.key] !== info.id) {
 					span.className = "id-warning";
 				}
 				span.innerHTML = o.kwic;
@@ -274,12 +236,6 @@ window.addEventListener("WebComponentsReady", () => {
 	function save() {
 		view.saveHistory();
 		const data = form.serializeForm();
-		form.querySelectorAll(`.annotation-form.${type} jinn-xml-editor`).forEach((editor) => {
-			const value = editor.content;
-			if (value) {
-				data[editor.getAttribute('name')] = value;
-			}
-		});
 		if (!autoSave) {
 			hideForm();
 		}
@@ -294,7 +250,6 @@ window.addEventListener("WebComponentsReady", () => {
 				view.addAnnotation({
 					type,
 					properties: data,
-					before: emptyElement
 				});
 			} catch (e) {
 				document.getElementById('runtime-error-dialog').show('Error', e);
@@ -308,9 +263,6 @@ window.addEventListener("WebComponentsReady", () => {
 	 * @param {any} annotations the current list of annotations
 	 */
 	function preview(annotations, doStore) {
-		if (doStore) {
-			document.dispatchEvent(new CustomEvent('reset-panels'));
-		}
 		const endpoint = document.querySelector("pb-page").getEndpoint();
 		const doc = document.getElementById("document1");
 		document.getElementById("output").code = "";
@@ -328,7 +280,7 @@ window.addEventListener("WebComponentsReady", () => {
 				if (response.ok) {
 					return response.json();
 				}
-				if (response.status === 403) {
+				if (response.status === 401 || response.status === 403) {
 					document.getElementById('permission-denied-dialog').show();
 					throw new Error(response.statusText);
 				}
@@ -357,7 +309,7 @@ window.addEventListener("WebComponentsReady", () => {
 				}
 				resolve(json.content);
 				fetch(
-					`${endpoint}/api/preview?odd=${previewOdd}.odd&base=${encodeURIComponent(
+					`${endpoint}/api/preview?odd=${doc.odd}.odd&base=${encodeURIComponent(
 						endpoint
 					)}%2F`,
 					{
@@ -397,14 +349,10 @@ window.addEventListener("WebComponentsReady", () => {
 				autoSave = true;
 				window.pbEvents.emit("pb-authority-lookup", "transcription", {
 					type,
-					query: selection
+					query: selection,
 				});
+				authorityDialog.open();
 			}
-			emptyElement = false;
-			if (button.classList.contains("before")) {
-				emptyElement = true;
-			}
-			window.pbEvents.emit("show-annotation", "transcription", {});
 			showForm(type);
 			text = selection;
 			activeSpan = null;
@@ -443,166 +391,15 @@ window.addEventListener("WebComponentsReady", () => {
 		window.pbEvents.emit("pb-end-update", "transcription", {});
 	}
 
-	/*
-	 * Search entire collection for other occurrences
-	 */
-	function searchCollection(saveAll) {
-		window.pbEvents.emit("pb-start-update", "transcription", {});
-		const endpoint = document.querySelector("pb-page").getEndpoint();
-		let strings = '';
-		if (currentEntityInfo) {
-			strings = currentEntityInfo.strings || [];
-			strings.push(text);
-		} else {
-			strings = [text];
-		}
-		const doc = view.getDocument();
-		const params = new URLSearchParams();
-		params.set('type', type);
-		params.set('properties', JSON.stringify(form.serializeForm()));
-		params.set('exclude', doc.path);
-		params.set('format', saveAll ? 'annotations' : 'offsets');
-		strings.forEach(s => params.append('string', s));
-
-		fetch(`${endpoint}/api/nlp/strings/${doc.getCollection()}?${params.toString()}`, {
-			method: "GET",
-			mode: "cors",
-			credentials: "same-origin"
-		})
-		.then((response) => {
-			window.pbEvents.emit("pb-end-update", "transcription", {});
-			if (response.ok) {
-				return response.json();
-			}
-		})
-		.then((json) => {
-			const docs = Object.keys(json);
-			document.querySelector('#occurrences .messages').innerHTML = `Found matches in ${docs.length} other documents`;
-			if (saveAll) {
-				saveOccurrences(json);
-			} else {
-				review(docs, json);
-			}
-		}).catch(() => window.pbEvents.emit("pb-end-update", "transcription", {}));
-	}
-
-	/**
-	 * Save and merge all occurrences
-	 * 
-	 */
-	function saveOccurrences(data) {
-		const endpoint = document.querySelector("pb-page").getEndpoint();
-		window.pbEvents.emit("pb-start-update", "transcription", {});
-		fetch(`${endpoint}/api/annotations/merge`, {
-			method: "PUT",
-			mode: "cors",
-			credentials: "same-origin",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify(data),
-		})
-		.then((response) => {
-			window.pbEvents.emit("pb-end-update", "transcription", {});
-			if (response.ok) {
-				reviewDialog.close();
-				return;
-			}
-			if (response.status === 403) {
-				document.getElementById('permission-denied-dialog').show();
-				throw new Error(response.statusText);
-			}
-			document.getElementById('error-dialog').show();
-			throw new Error(response.statusText);
-		});
-	}
-
-	function checkNERAvailable() {
-		const endpoint = document.querySelector("pb-page").getEndpoint();
-		fetch(`${endpoint}/api/nlp/status`, {
-			method: "GET",
-			mode: "cors",
-			credentials: "same-origin"
-		})
-		.then((response) => {
-			if (response.ok) {
-				document.getElementById('ner-action').style.display = 'inline-block';
-				response.json().then(json => console.log(`NER: found spaCy version ${json.spacy_version}.`));
-			} else {
-				console.error("NER endpoint not available");
-			}
-		}).catch(() => console.error("NER endpoint not available"));
-	}
-
-	function ner() {
-		const endpoint = document.querySelector("pb-page").getEndpoint();
-		fetch(`${endpoint}/api/nlp/status/models`, {
-			method: "GET",
-			mode: "cors",
-			credentials: "same-origin"
-		})
-		.then((response) => {
-			if (response.ok) {
-				return response.json();
-			}
-		})
-		.then((json) => {
-			const list = [];
-			json.forEach((item) => {
-				list.push(`<paper-item>${item}</paper-item>`);
-			});
-			nerDialog.querySelector('paper-listbox').innerHTML = list.join('\n');
-			nerDialog.open();
-		});
-	}
-
-	function runNER() {
-		const endpoint = document.querySelector("pb-page").getEndpoint();
-		const cb = nerDialog.querySelector('paper-checkbox');
-		let url;
-		if (cb && cb.checked) {
-			const lang = nerDialog.querySelector('paper-input').value;
-			url = `${endpoint}/api/nlp/patterns/${doc.path}?lang=${lang}`;
-		} else {
-			const model = nerDialog.querySelector('paper-dropdown-menu').selectedItemLabel;
-			console.log('Using model %s', model)
-			url = `${endpoint}/api/nlp/entities/${doc.path}?model=${model}`;
-		}
-		window.pbEvents.emit("pb-start-update", "transcription", {});
-		fetch(url, {
-			method: "GET",
-			mode: "cors",
-			credentials: "same-origin"
-		})
-		.then((response) => {
-			if (response.ok) {
-				return response.json();
-			}
-		}).then((json) => {
-			view.annotations = json[doc.path];
-			window.pbEvents.emit("pb-end-update", "transcription", {});
-			preview(view.annotations);
-		});
-	}
-
 	hideForm();
 
 	// apply annotation action
 	saveBtn.addEventListener("click", () => save());
-	document.getElementById('ner-action').addEventListener('click', () => {
-		if (view.annotations.length > 0) {
-			document.getElementById('ner-denied-dialog').show();
-		} else {
-			ner();
-		}
-	});
-	document.getElementById('ner-run').addEventListener('click', () => runNER());
 	// reload source TEI, discarding current annotations
 	document.getElementById('reload-all').addEventListener('click', () => {
 		function reload() {
 			window.pbEvents.emit("pb-refresh", "transcription", { preserveScroll: true });
 			hideForm();
-			document.dispatchEvent(new CustomEvent('reset-panels'));
 		}
 		if (view.annotations.length > 0) {
 			document.getElementById('confirm-reload-dialog').confirm()
@@ -653,17 +450,6 @@ window.addEventListener("WebComponentsReady", () => {
 	}
 	markAllBtn.addEventListener("click", markAll);
 
-	// search occurrences across entire collection
-	const searchBtn = document.getElementById('search-collection');
-	searchBtn.addEventListener('click', () => {
-		searchCollection(false);
-	});
-
-	const searchSaveBtn = document.getElementById('save-all');
-    searchSaveBtn.addEventListener('click', () => {
-        searchCollection(true);
-    });
-
 	// display configured keyboard shortcuts on mouseover
 	document.addEventListener('pb-page-ready', () => {
 		document.querySelectorAll('[data-shortcut]').forEach((elem) => {
@@ -676,73 +462,57 @@ window.addEventListener("WebComponentsReady", () => {
 			const title = elem.getAttribute('title') || '';
 			elem.title = `${title} [${output.replaceAll('+', ' ')}]`;
 		});
-		checkNERAvailable();
 	});
 
-	// todo: what's this for? -> fishes the type and query params from iron-form and opens dialog
-	document.querySelectorAll('.form-ref [slot="prefix"]').forEach(elem => {
-		elem.addEventListener("click", () => {
-			window.pbEvents.emit("pb-authority-lookup", "transcription", {
-				type,
-				query: text,
-			});
-			// todo:
-			// authorityDialog.open();
-			window.pbEvents.emit("show-annotation", "transcription", {});
-
+	document.querySelector('#form-ref [slot="prefix"]').addEventListener("click", () => {
+		window.pbEvents.emit("pb-authority-lookup", "transcription", {
+			type,
+			query: text,
 		});
+		authorityDialog.open();
 	});
+
+	// check if annotations were saved to local storage
+	const doc = view.getDocument();
+	if (doc && doc.path) {
+		const ranges = window.localStorage.getItem(`tei-publisher.annotations.${doc.path}`);
+		if (ranges) {
+			const annotations = JSON.parse(ranges);
+			if (annotations.length > 0) {
+				document.getElementById('restore-dialog').confirm()
+				.then(() => {
+					console.log('loading annotations from local storage: %o', annotations);
+					view.annotations = annotations;
+					const history = window.localStorage.getItem(`tei-publisher.annotations.${doc.path}.history`);
+					if (history) {
+						view.clearHistory(JSON.parse(history));
+					}
+					window.localStorage.removeItem(`tei-publisher.annotations.${doc.path}`);
+					window.localStorage.removeItem(`tei-publisher.annotations.${doc.path}.history`);
+					preview(annotations);
+				});
+			}
+		}
+	}
 
 	/**
 	 * Reference changed: update authority information and search for other occurrences
 	 */
-	refInput.forEach(input => {
-		input.addEventListener("value-changed", () => {
-			const ref = input.value;
-			const authorityInfo = input.parentElement.querySelector('.authority-info');
-			if (ref && ref.length > 0) {
-				authorityInfo.innerHTML = `Loading ${ref}...`;
-				document
-					.querySelector("pb-authority-lookup")
-					.lookup(type, input.value, authorityInfo)
-					.then(info => {
-						document.getElementById('edit-entity').style.display = info.editable ? 'block' : 'none';
-
-						currentEntityInfo = info;
-						findOther(info);
-					})
-					.catch((msg) => {
-						authorityInfo.innerHTML = `Failed to load ${ref}: ${msg}`;
-					});
-			} else {
-				authorityInfo.innerHTML = "";
-			}
-		});
+	refInput.addEventListener("value-changed", () => {
+		const ref = refInput.value;
+		if (ref && ref.length > 0) {
+			authorityInfo.innerHTML = `Loading ${ref}...`;
+			document
+				.querySelector("pb-authority-lookup")
+				.lookup(type, refInput.value, authorityInfo)
+				.then(findOther)
+				.catch((msg) => {
+					authorityInfo.innerHTML = `Failed to load ${ref}: ${msg}`;
+				});
+		} else {
+			authorityInfo.innerHTML = "";
+		}
 	});
-
-	const editEntity = document.getElementById('edit-entity');
-	editEntity.addEventListener('click', () => {
-		const ref = editEntity.parentNode.parentNode.querySelector('.form-ref');
-		document.dispatchEvent(new CustomEvent('pb-authority-edit-entity', { detail: {id: ref.value, type }}));
-	});
-
-	const authEditor = document.getElementById('authority-editor');
-	authEditor.addEventListener('geolocation', (ev) => {
-		const coords = ev.detail.coordinates.split(/\s+/);
-		
-		pbEvents.ifReady(document.querySelector('pb-leaflet-map'))
-			.then(() =>
-			pbEvents.emit('pb-geolocation', null, {
-				coordinates: {
-					latitude: coords[0],
-					longitude: coords[1]
-				},
-				label: ev.detail.name,
-				clear: true
-			})
-		);
-	});
-
 	/**
 	 * Handle click on one of the toolbar buttons for adding a new annotation.
 	 */
@@ -759,29 +529,9 @@ window.addEventListener("WebComponentsReady", () => {
 			actionHandler(button);
 		});
 	});
-
-	/**
-	 * handle button to toggle the tabcontainer to display at the bottom of the window versus on the right side
-	 */
-	document.querySelector('#toggle-markup').addEventListener('click', (ev) => {
-		const markupPanel = document.querySelector('#markupPanel');
-		if( markupPanel.classList.contains('on')) {
-			markupPanel.classList.remove('on');
-			ev.target.setAttribute('icon' , 'icons:visibility-off');
-		} else {
-			markupPanel.classList.add('on');
-			ev.target.setAttribute('icon', 'icons:visibility');
-			preview(view.annotations);
-		}
-	});
-
 	window.pbEvents.subscribe("pb-authority-select", "transcription", (ev) =>
-		authoritySelected(ev.detail.properties.ref)
+		authoritySelected(ev.detail)
 	);
-	document.addEventListener("authority-created", (ev) =>
-		authoritySelected(ev.detail.ref)
-	);
-
 	window.pbEvents.subscribe("pb-selection-changed", "transcription", (ev) => {
 		disableButtons(!ev.detail.hasContent, ev.detail.range);
 		if (ev.detail.hasContent) {
@@ -817,33 +567,21 @@ window.addEventListener("WebComponentsReady", () => {
 				type,
 				query: text,
 			});
-			//authorityDialog.open();
-
+			authorityDialog.open();
 		}
-		window.pbEvents.emit("annotation-edit", "transcription", {ref: ev.detail.properties[view.key] || ''});
-
 		showForm(type, ev.detail.properties);
 	});
-
-
-/*
-	document.addEventListener("show-annotation-form", (ev) => {
-		showForm('edit');
-	});
-*/
 
 	window.pbEvents.subscribe("pb-annotation-detail", "transcription", (ev) => {
 		switch (ev.detail.type) {
 			case "note":
 				const data = JSON.parse(ev.detail.span.dataset.annotation);
 				ev.detail.container.innerHTML = data.properties.note;
-				ev.detail.ready();
 				break;
 			default:
 				document
 					.querySelector("pb-authority-lookup")
 					.lookup(ev.detail.type, ev.detail.id, ev.detail.container)
-					.then(() => ev.detail.ready())
 					.catch((msg) => {
 						const div = document.createElement('div');
 						const h = document.createElement('h3');
@@ -860,38 +598,15 @@ window.addEventListener("WebComponentsReady", () => {
 						div.appendChild(pre);
 						ev.detail.container.innerHTML = '';
 						ev.detail.container.appendChild(div);
-						ev.detail.ready();
 					});
 				break;
 		}
 	});
 
-	window.pbEvents.subscribe("pb-annotation-colors", "transcription", (ev) => {
-		const colors = ev.detail.colors;
-		const styles = [];
-		colors.forEach((color, type) => {
-			styles.push(`
-				.annotation-action[data-type=${type}] {
-					color: ${color.color};
-					border-bottom: 2px solid ${color.color};
-				}
-			`);
-		});
-
-		let css = document.head.querySelector('#annotation_colors');
-		if (!css) {
-			css = document.createElement('style');
-			css.id = 'annotation_colors';
-			document.head.appendChild(css);
-		}
-		css.innerHTML = styles.join('\n');
-	});
-
 	// wire the ODD selector for the preview
 	const oddSelector = document.querySelector('pb-select-odd');
-	oddSelector.odd = previewOdd;
+	oddSelector.odd = doc.odd;
 	window.pbEvents.subscribe('pb-refresh', 'preview', (ev) => {
-		previewOdd = ev.detail.odd;
-		preview(view.annotations);
+		doc.odd = ev.detail.odd;
 	});
 });

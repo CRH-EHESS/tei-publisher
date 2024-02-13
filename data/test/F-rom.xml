@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?teipublisher template="shakespeare.html" odd="shakespeare.odd" view="page" media="pdf epub print"?>
-<TEI xmlns="http://www.tei-c.org/ns/1.0" n="Ab">
+<?teipublisher template="facsimile.html" odd="shakespeare.odd" view="page"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0">
     <teiHeader>
         <fileDesc>
             <titleStmt>
@@ -294,20 +294,9 @@
             </sourceDesc>
         </fileDesc>
         <profileDesc>
-            <abstract>
-                <ab>Demonstrates page-by-page browsing of a play with two-column layout. Integrates a <ref target="https://cdn.tei-publisher.com/@2.9.0/dist/api.html#pb-tify.0">IIIF presentation
-                    API viewer</ref> for the page images. The IIIF presentation manifest is created on the fly using API
-                    endpoint <ref target="api.html">/api/iiif/{path}</ref>. </ab>
-            </abstract>
             <textClass>
                 <catRef scheme="#genre" target="#drama"/>
-                <catRef scheme="#feature" target="#iiif"/>
                 <catRef scheme="#form" target="#print"/>
-                <catRef scheme="#feature" target="#image"/>
-                <catRef scheme="#feature" target="#pages"/>
-                <catRef scheme="#feature" target="#columns"/>
-                <catRef scheme="#feature" target="#ltr"/>
-                <catRef scheme="#period" target="#early-modern"/>
             </textClass>
             <langUsage>
                 <language ident="en">English</language>

@@ -24,26 +24,11 @@ declare namespace tei = "http://www.tei-c.org/ns/1.0";
  :)
 declare variable $config:origin-whitelist := (
     "(?:https?://localhost:.*|https?://127.0.0.1:.*)",
-    "https?://jsdelivr.net",
     "https?://unpkg.com",
-    "https?://cdpn.io",
-    "https://cdn.tei-publisher.com",
-    "https?://teipublisher.onrender.com"
+    "https?://cdpn.io"
 );
 
-(:~
- : Set to true to allow caching: if the browser sends an If-Modified-Since header,
- : TEI Publisher will respond with a 304 if the resource has not changed since last
- : access. However, this does *not* take into account changes to ODD or other auxiliary 
- : files, so don't use it during development.
- :)
-declare variable $config:enable-proxy-caching :=
-    let $prop := util:system-property("teipublisher.proxy-caching")
-    return
-        exists($prop) and lower-case($prop) = 'true'
-;
-
-(:~
+(:~~
  : The version of the pb-components webcomponents library to be used by this app.
  : Should either point to a version published on npm,
  : or be set to 'local' or 'dev'. 
@@ -60,19 +45,15 @@ declare variable $config:enable-proxy-caching :=
  : In this case, change $config:webcomponents-cdn to point to http://localhost:port 
  : (default: 8000, but check where your server is running).
  :)
-declare variable $config:webcomponents := "2.19.0";
+declare variable $config:webcomponents := "1.24.18";
 
 (:~
  : CDN URL to use for loading webcomponents. Could be changed if you created your
  : own library extending pb-components and published it to a CDN.
  :)
-(: declare variable $config:webcomponents-cdn := "https://unpkg.com/@teipublisher/pb-components"; :)
-declare variable $config:webcomponents-cdn := "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components";
-(: declare variable $config:webcomponents-cdn := "https://cdn.tei-publisher.com/"; :)
+declare variable $config:webcomponents-cdn := "https://unpkg.com/@teipublisher/pb-components";
+(: declare variable $config:webcomponents-cdn := "https://cdn.jsdelivr.net/npm/@teipublisher/pb-components"; :)
 (: declare variable $config:webcomponents-cdn := "http://localhost:8000"; :)
-
-(: Version of fore to use for annotation editor. Set to 'local' for self-hosted version. :)
-declare variable $config:fore := "1.9.0";
 
 (:~
  : Should documents be located by xml:id or filename?
@@ -128,24 +109,17 @@ declare variable $config:pagination-fill := 5;
  :)
 declare variable $config:facets := [
     map {
-        "dimension": "place",
-        "heading": "annotations.place",
-        "source": "api/search/facets/place",
-        "max": 5
-    },
-    map {
         "dimension": "genre",
         "heading": "facets.genre",
-        "max": 10,
+        "max": 5,
         "hierarchical": true()
     },
     map {
         "dimension": "language",
         "heading": "facets.language",
-        "source": "api/search/facets/language",
         "max": 5,
         "hierarchical": false(),
-        "output": function($label, $language) {
+        "output": function($label) {
             switch($label)
                 case "de" return "German"
                 case "es" return "Spanish"
@@ -153,31 +127,8 @@ declare variable $config:facets := [
                 case "fr" return "French"
                 case "en" return "English"
                 case "pl" return "Polish"
-                case "uk" return "Ukrainian"
                 default return $label
         }
-    },
-    map {
-        "dimension": "feature",
-        "heading": "facets.feature",
-        "source": "api/search/facets/feature",
-        "output": function($label) {
-            upper-case(substring($label,1,1)) || substring($label, 2)
-        },
-        "max": 5,
-        "hierarchical": false()
-    },
-    map {
-        "dimension": "period",
-        "heading": "facets.period",
-        "max": 15,
-        "hierarchical": false()
-    },
-    map {
-        "dimension": "form",
-        "heading": "facets.form",
-        "max": 15,
-        "hierarchical": false()
     }
 ];
 
@@ -271,7 +222,7 @@ return
  : arguments.
  :)
 declare variable $config:tex-command := function ($file) {
-    ("pdflatex", "-interaction=nonstopmode", $file)
+    ("/usr/local/texlive/2020/bin/x86_64-darwin/pdflatex", "-interaction=nonstopmode", $file)
 };
 
 (:
@@ -335,29 +286,10 @@ return
  : The context path to use for links within the application, e.g. menus.
  : The default should work when running on top of a standard eXist installation,
  : but may need to be changed if the app is behind a proxy.
- :
- : The context path is determined as follows:
- :
- : 1. if a system property `teipublisher.context-path` is set:
- :  a. with value 'auto': determine context path by looking at the incoming request. This will
- :     usually resolve to e.g. "/exist/apps/tei-publisher/".
- :  b. otherwise use the value of the property
- : 2. if an HTTP header X-Forwarded-Host is set, assume that eXist is running behind a proxy
- :    and the app should be mapped to the root of the website (i.e. without /exist/apps/...)
- : 3. otherwise determine path from request as in 1a.
  :)
 declare variable $config:context-path :=
-    let $prop := util:system-property("teipublisher.context-path")
-    return
-        if (exists($prop)) then
-            if ($prop = "auto") then
-                request:get-context-path() || substring-after($config:app-root, "/db") 
-            else
-                $prop
-        else if (exists(request:get-header("X-Forwarded-Host")))
-            then ""
-        else
-            request:get-context-path() || substring-after($config:app-root, "/db")
+   request:get-context-path() || substring-after($config:app-root, "/db")
+    (: "" :)
 ;
 
 (:~
@@ -371,51 +303,14 @@ declare variable $config:data-root := $config:app-root || "/data";
  :)
 declare variable $config:data-default := $config:data-root;
 
-
-(:~
- : Location of the taxonomies.
- :)
-declare variable $config:taxonomy := $config:data-root || "/taxonomy.xml";
-
 (:~
  : A sequence of root elements which should be excluded from the list of
  : documents displayed in the browsing view.
  :)
 declare variable $config:data-exclude := (
-    doc($config:taxonomy)//tei:text,
-    collection($config:register-root)//tei:text,
-    collection($config:data-root || "/doc")//tei:text
+    doc($config:data-root || "/taxonomy.xml")/tei:TEI,
+    collection($config:data-root || "/doc")/tei:TEI
 );
-
-(:~
- : The root of the collection hierarchy containing registers data.
- :)
-declare variable $config:register-root := $config:data-root || "/registers";
-declare variable $config:register-forms := $config:data-root || "/registers/templates";
-
-declare variable $config:register-map := map {
-    "person": map {
-        "id": "pb-persons",
-        "default": "person-default",
-        "prefix": "person-"
-    },
-    "place": map {
-        "id": "pb-places",
-        "default": "place-default",
-        "prefix": "place-"
-    },
-    "organization": map {
-        "id": "pb-organizations",
-        "default": "organization-default",
-        "prefix": "org-"
-    },
-    "term": map {
-        "id": "pb-keywords",
-        "default": "term-default",
-        "prefix": "category-"
-    }
-};
-
 
 declare variable $config:default-odd := "teipublisher.odd";
 
@@ -424,8 +319,7 @@ declare variable $config:default-odd := "teipublisher.odd";
  : make sure to run modules/generate-pm-config.xql to update the main configuration
  : module for transformations (modules/pm-config.xql).
  :)
-declare variable $config:odd-available := 
-    xmldb:get-child-resources($config:odd-root)[ends-with(., ".odd")][. != "teipublisher_odds.odd"];
+declare variable $config:odd-available := xmldb:get-child-resources($config:odd-root)[ends-with(., ".odd")];
 
 (:~
  : List of ODD files which are used internally only, i.e. not for displaying information
@@ -451,7 +345,7 @@ declare variable $config:expath-descriptor := doc(concat($config:app-root, "/exp
 
 declare variable $config:session-prefix := $config:expath-descriptor/@abbrev/string();
 
-declare variable $config:default-fields := ("lemma");
+declare variable $config:default-fields := ();
 
 declare variable $config:dts-collections := map {
     "id": "default",
@@ -461,44 +355,28 @@ declare variable $config:dts-collections := map {
             "id": "documents",
             "title": "Document Collection",
             "path": $config:data-default,
-            "memberCollections": (
-                map {
-                    "id": "https://teipublisher.com/dts/demo",
-                    "title": "TEI Publisher Demo Documents",
-                    "path": $config:data-default || "/test",
-                    "members": function() {
-                        nav:get-root("test", map {
-                            "leading-wildcard": "yes",
-                            "filter-rewrite": "yes"
-                        })
-                    },
-                    "metadata": config:dts-metadata#1
-                },
-                map {
-                    "id": "https://teipublisher.com/dts/playground",
-                    "title": "Playground",
-                    "path": $config:data-default || "/playground",
-                    "members": function() {
-                        nav:get-root("playground", map {
-                            "leading-wildcard": "yes",
-                            "filter-rewrite": "yes"
-                        })
-                    },
-                    "metadata": config:dts-metadata#1
-                },
-                map {
-                    "id": "https://teipublisher.com/dts/documentation",
-                    "title": "Documentation",
-                    "path": $config:data-default || "/doc",
-                    "members": function() {
-                        doc($config:data-default || "/doc/documentation.xml")
-                    },
-                    "metadata": config:dts-metadata#1
-                }
-            )
+            "members": function() {
+                nav:get-root((), map {
+                    "leading-wildcard": "yes",
+                    "filter-rewrite": "yes"
+                })
+            },
+            "metadata": function($doc as document-node()) {
+                let $properties := tpu:parse-pi($doc, ())
+                return
+                    map:merge((
+                        map:entry("title", string-join(nav:get-metadata($properties, $doc/*, "title"), ', ')),
+                        map {
+                            "dts:dublincore": map {
+                                "dc:creator": string-join(nav:get-metadata($properties, $doc/*, "author"), "; "),
+                                "dc:license": nav:get-metadata($properties, $doc/*, "license")
+                            }
+                        }
+                    ))
+            }
         },
         map {
-            "id": "https://teipublisher.com/dts/odd",
+            "id": "odd",
             "title": "ODD Collection",
             "path": $config:odd-root,
             "members": function() {
@@ -517,20 +395,6 @@ declare variable $config:dts-page-size := 10;
 
 declare variable $config:dts-import-collection := $config:data-default || "/playground";
 
-declare function config:dts-metadata($doc as document-node()) {
-    let $properties := tpu:parse-pi($doc, ())
-    return
-        map:merge((
-            map:entry("title", string-join(nav:get-metadata($properties, $doc/*, "title"), ', ')),
-            map {
-                "dts:dublincore": map {
-                    "dc:creator": string-join(nav:get-metadata($properties, $doc/*, "author"), "; "),
-                    "dc:license": nav:get-metadata($properties, $doc/*, "license")
-                }
-            }
-        ))
-};
-
 (:~
  : Returns a default display configuration as a map for the given collection and
  : document path. If an empty value is returned, the default configuration (as configured
@@ -546,28 +410,37 @@ declare function config:dts-metadata($doc as document-node()) {
  : @param $docUri relative document path (including $collection)
  :)
 declare function config:collection-config($collection as xs:string?, $docUri as xs:string?) {
-    let $prefix := replace($collection, "^([^/]+).*$",
-"$1")     return         switch ($prefix)
-            case "jats" return
-                map {
-                    "template": "jats.html",
-                    "odd": "jats.odd",
-                    "view": "single",
-                    "media": ("print", "epub")
-                }
-            (: For annotations we need to overwrite document-specific settings :)
-            case "annotate" return
-                map {
-                    "template": "annotate.html",
-                    "overwrite": true(),
-                    "depth": 1,
-                    "fill": 0
-                }
-            default return
-                (: Return empty sequence to use default config :)
-            
+    switch ($collection)
+        (: For annotations we need to overwrite document-specific settings :)
+        case "annotate" return
+            map {
+                "template": "annotate.html",
+                "overwrite": true(),
+                "depth": 1,
+                "fill": 0
+            }
+        default return
+            (: Return empty sequence to use default config :)
+            ()
 
-  () };
+    (: 
+     : Replace line above with the following code to switch between different view configurations per collection.
+     : $collection corresponds to the relative collection path (i.e. after $config:data-root). 
+     :)
+    (:
+    switch ($collection)
+        case "playground" return
+            map {
+                "odd": "dodis.odd",
+                "view": "body",
+                "depth": $config:pagination-depth,
+                "fill": $config:pagination-fill,
+                "template": "facsimile.html"
+            }
+        default return
+            ()
+    :)
+};
 
 (:~
  : Helper function to retrieve the default config for the given document path.

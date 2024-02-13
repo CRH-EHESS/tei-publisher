@@ -4,12 +4,11 @@ module namespace anno="http://teipublisher.com/api/annotations";
 
 declare namespace tei="http://www.tei-c.org/ns/1.0";
 
-import module namespace router="http://e-editiones.org/roaster";
-import module namespace errors = "http://e-editiones.org/roaster/errors";
+import module namespace router="http://exist-db.org/xquery/router";
+import module namespace errors = "http://exist-db.org/xquery/router/errors";
 import module namespace config="http://www.tei-c.org/tei-simple/config" at "../../config.xqm";
 import module namespace annocfg = "http://teipublisher.com/api/annotations/config" at "../../annotation-config.xqm";
 import module namespace pm-config="http://www.tei-c.org/tei-simple/pm-config" at "../../pm-config.xql";
-import module namespace rapi="http://teipublisher.com/api/registers" at "../../registers.xql";
 
 declare function anno:find-references($request as map(*)) {
     map:merge(
@@ -21,29 +20,68 @@ declare function anno:find-references($request as map(*)) {
     )
 };
 
+declare function anno:query-register($request as map(*)) {
+    let $type := $request?parameters?type
+    let $query := $request?parameters?query
+    return
+        array {
+            annocfg:query($type, $query)
+        }
+};
+
+(:~
+ : Save a local copy of an authority entry - if it has not been stored already -
+ : based on the information provided by the client.
+ :
+ : Dispatches the actual record creation to annocfg:create-record.
+ :)
+declare function anno:save-local-copy($request as map(*)) {
+    let $data := $request?body
+    let $type := $request?parameters?type
+    let $id := xmldb:decode($request?parameters?id)
+    let $record := doc($annocfg:local-authority-file)/id($id)
+    return
+        if ($record) then
+            map {
+                "status": "found"
+            }
+        else
+            let $record := annocfg:create-record($type, $id, $data)
+            let $target := annocfg:insert-point($type)
+            return (
+                update insert $record into $target,
+                map {
+                    "status": "updated"
+                }
+            )
+};
+
+(:~ 
+ : Search for an authority entry in the local register.
+:)
+declare function anno:register-entry($request as map(*)) {
+    let $type := $request?parameters?type
+    let $id := $request?parameters?id
+    let $entry := doc($annocfg:local-authority-file)/id($id)
+    let $strings := annocfg:local-search-strings($type, $entry)
+    return
+        if ($entry) then
+            map {
+                "id": $entry/@xml:id/string(),
+                "strings": array { $strings },
+                "details": <div>{$pm-config:web-transform($entry, map {}, "annotations.odd")}</div>
+            }
+        else
+            error($errors:NOT_FOUND, "Entry for " || $id || " not found")
+};
+
 (:~
  : Merge and optionally save the annotations passed in the request body.
  :)
 declare function anno:save($request as map(*)) {
     let $annotations := $request?body
-    return
-        if ($annotations instance of array(*)) then
-            let $path := xmldb:decode($request?parameters?path)
-            let $srcDoc := config:get-document($path)
-            return
-                anno:merge-and-save($srcDoc, $path, $annotations)
-        else
-            let $result :=
-                for $path in map:keys($annotations)
-                let $srcDoc := config:get-document($path)
-                return
-                    anno:merge-and-save($srcDoc, $path, $annotations($path))
-            return
-                router:response(200, count(map:keys($annotations)) || ' documents merged')
-
-};
-
-declare function anno:merge-and-save($srcDoc as node(), $path as xs:string, $annotations as array(*)) {
+    let $path := xmldb:decode($request?parameters?path)
+    let $srcDoc := config:get-document($path)
     let $hasAccess := sm:has-access(document-uri(root($srcDoc)), "rw-")
     return
         if (not($hasAccess) and request:get-method() = 'PUT') then
@@ -291,34 +329,17 @@ declare %private function anno:apply($node as node(), $startOffset as xs:int, $e
     let $start := anno:find-offset($node, $startOffset, "start", $node instance of element(tei:note))
     let $end := anno:find-offset($node, $endOffset, "end", $node instance of element(tei:note))
     let $startAdjusted :=
-        if ($start?2 = 1 and not($start?1 is $end?1)) then
-            [anno:find-outermost($node, $start?1, "start"), 1]
+        if (not($start?1/.. is $node) and $start?2 = 1 and not($start?1 is $end?1)) then
+            [$start?1/.., 1]
         else
             $start
     let $endAdjusted :=
-        if ($end?2 = string-length($end?1) and not($start?1 is $end?1)) then
-            let $outer := anno:find-outermost($node, $end?1, "end")
-            let $offset := if ($outer/following-sibling::node()) then 1 else $end?2
-            return
-                [anno:find-outermost($node, $end?1, "end"), $offset]
+        if (not($end?1/.. is $node) and $end?2 = string-length($end?1) and not($start?1 is $end?1)) then
+            [$end?1/.., 1]
         else
             $end
     return
         anno:transform($node, $startAdjusted, $endAdjusted, false(), $annotation)
-};
-
-declare %private function anno:find-outermost($context as node(), $node as node(), $pos as xs:string) {
-    let $parent := $node/..
-    return
-        if ($parent is $context) then
-            $node
-        else if (
-            ($pos = "start" and empty($parent/preceding-sibling::node()))
-            or ($pos = "end" and empty($parent/following-sibling::node()))
-        ) then
-            anno:find-outermost($context, $parent, $pos)
-        else
-            $parent
 };
 
 declare %private function anno:find-offset($nodes as node()*, $offset as xs:int, $pos as xs:string, $isNote as xs:boolean?) {
@@ -329,32 +350,28 @@ declare %private function anno:find-offset($nodes as node()*, $offset as xs:int,
         return
             typeswitch($node)
                 case element(tei:choice) return
-                    let $primary := $node/tei:sic | $node/tei:abbr | $node/tei:orig
-                    let $found := anno:find-offset($primary, $offset, $pos, ())
-                    return
-                        if (exists($found)) then
-                            $found
-                        else
-                            anno:find-offset(tail($nodes), $offset - anno:string-length($primary), $pos, ())
+                    let $primary := $node/tei:sic | $node/tei:expan
+                    return (
+                        anno:find-offset($primary, $offset, $pos, ()),
+                        anno:find-offset(tail($nodes), $offset - string-length($primary), $pos, ())
+                    )
                 case element(tei:app) return
                     let $primary := $node/tei:lem
-                    let $found := anno:find-offset($primary, $offset, $pos, ())
-                    return
-                        if (exists($found)) then
-                            $found
-                        else
-                            anno:find-offset(tail($nodes), $offset - anno:string-length($primary), $pos, ())
+                    return (
+                        anno:find-offset($primary, $offset, $pos, ()),
+                        anno:find-offset(tail($nodes), $offset - string-length($primary), $pos, ())
+                    )
                 case element(tei:note) return
                     if ($isNote) then
                         let $found := anno:find-offset($node/node(), $offset, $pos, ())
                         return
-                            if (exists($found)) then $found else anno:find-offset(tail($nodes), $offset - anno:string-length($node), $pos, ())
+                            if (exists($found)) then $found else anno:find-offset(tail($nodes), $offset - string-length($node), $pos, ())
                     else
                         anno:find-offset(tail($nodes), $offset, $pos, ())
                 case element() return
                     let $found := anno:find-offset($node/node(), $offset, $pos, ())
                     return
-                        if (exists($found)) then $found else anno:find-offset(tail($nodes), $offset - anno:string-length($node), $pos, ())
+                        if (exists($found)) then $found else anno:find-offset(tail($nodes), $offset - string-length($node), $pos, ())
                 case text() return
                     let $len := string-length($node)
                     return
@@ -367,35 +384,6 @@ declare %private function anno:find-offset($nodes as node()*, $offset as xs:int,
                             anno:find-offset(tail($nodes), $offset - $len, $pos, ())
                 default return
                     ()
-};
-
-declare %private function anno:string-length($nodes as node()*) {
-    anno:string-length($nodes, 0)
-};
-
-(:~
- : Compute the string-length of the given node set, taking into account footnotes, choices and app,
- : which should be counted in part only or not at all.
- :)
-declare %private function anno:string-length($nodes as node()*, $length as xs:int) {
-    if ($nodes) then
-        let $node := head($nodes)
-        let $newLength :=
-            typeswitch ($node)
-                case element(tei:note) return
-                    $length
-                case element(tei:choice) return
-                    anno:string-length($node/tei:sic | $node/tei:abbr, $length)
-                case element(tei:app) return
-                    anno:string-length($node/tei:lem, $length)
-                case element() return
-                    anno:string-length($node/node(), $length)
-                default return
-                    $length + string-length($node)
-        return
-            anno:string-length(tail($nodes), $newLength)
-    else
-        $length
 };
 
 declare %private function anno:transform($nodes as node()*, $start, $end, $inAnno, $annotation as map(*)) {

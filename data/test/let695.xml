@@ -2,8 +2,8 @@
 <!-- Last Changed Date: 2018-07-18 12:32:41 +0200 (Wed, 18 Jul 2018) | SVN Revision: 2206 -->
 <!--Licensed under Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)-->
 <?xml-model href="https://xmlschema.huygens.knaw.nl/vgodd.rng" type="application/xml" schematypens="http://relaxng.org/ns/structure/1.0"?>
-<?teipublisher odd="vangogh.odd" template="vangogh.html" view="page" media="latex"?>
-<TEI xmlns:vg="http://www.vangoghletters.org/ns/" xmlns="http://www.tei-c.org/ns/1.0" n="Ac">
+<?teipublisher odd="vangogh.odd" template="vangogh.html" view="page"?>
+<TEI xmlns:vg="http://www.vangoghletters.org/ns/" xmlns="http://www.tei-c.org/ns/1.0">
   <teiHeader xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
     <fileDesc>
       <titleStmt>
@@ -65,19 +65,9 @@
       </sourceDesc>
     </fileDesc>
     <profileDesc>
-      <abstract>
-        <p>A letter from Van Gogh to Paul Gauguin written in 1888. This intentionally reproduces the flexible column layout pioneered by the Vincent Van Gogh Letters online edition, which is a model example for correspondence.</p>
-        <p>The source encoding makes use of custom Van Gogh project namespace along the TEI structure. Alignment between original text and translation is achieved with a custom mapping function which leverages the conventions applied when assigning page identifiers in Van Gogh project.</p>
-      </abstract>
       <textClass>
         <catRef scheme="#genre" target="#correspondence"/>
         <catRef scheme="#form" target="#manuscript"/>
-        <catRef scheme="#feature" target="#ltr"/>
-        <catRef scheme="#feature" target="#image"/>
-        <catRef scheme="#feature" target="#translation"/>
-        <catRef scheme="#feature" target="#person"/>
-        <catRef scheme="#feature" target="#place"/>
-        <catRef scheme="#period" target="#modern"/>
       </textClass>
       <langUsage>
         <language ident="fr">French</language>

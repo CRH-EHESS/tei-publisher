@@ -11,7 +11,7 @@ const spec = path.resolve("./modules/lib/api.json");
 chai.use(chaiResponseValidator(spec));
 
 describe('/api/collection', function () {
-    this.timeout(30000);
+    this.timeout(10000);
 
     it('retrieves document list for default data collection', async function () {
         const res = await util.axios.get('collection');
@@ -46,9 +46,13 @@ describe('/api/upload', function() {
         expect(res).to.satisfyApiSpec;
     });
 
-    it('deletes the uploaded document', async function () {
-        const res = await util.axios.delete('document/playground%2Fgraves6.xml')
-        expect(res.status).to.equal(204);
+    it('deletes the uploaded document', function (done) {
+        util.axios.delete('document/playground%2Fgraves6.xml')
+        .catch(function(error) {
+            expect(error.response.status).to.equal(410);
+            expect(error.response).to.satisfyApiSpec;
+            done();
+        })
     });
 
     it('uploads a document to the root collection of the app', async function () {
@@ -62,9 +66,13 @@ describe('/api/upload', function() {
         expect(res).to.satisfyApiSpec;
     });
 
-    it('deletes the uploaded document from root collection', async function () {
-        const res = await util.axios.delete('document/let695.xml')
-        expect(res.status).to.equal(204);
+    it('deletes the uploaded document', function (done) {
+        util.axios.delete('document/let695.xml')
+            .catch(function (error) {
+                expect(error.response.status).to.equal(410);
+                expect(error.response).to.satisfyApiSpec;
+                done();
+            })
     });
 
     after(util.logout);

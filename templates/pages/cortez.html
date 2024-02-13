@@ -14,6 +14,8 @@
     <meta name="description" content="Cortez Letter" />
     <meta name="pb-template" content="translation.html" />
 
+    <link rel="stylesheet" type="text/css" href="resources/fonts/font.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Oswald&amp;display=swap" />
     <link rel="stylesheet" href="resources/css/theme.css" />
     <script type="module" src="pb-components-bundle.js" data-template="pages:load-components"></script>
 
@@ -50,7 +52,6 @@
 
             .content-body pb-view {
                 flex: 1 1;
-                min-height: var(--pb-view-height);
             }
 
             .content-body pb-facsimile {
@@ -86,7 +87,7 @@
                         append-footnotes="append-footnotes" subscribe="transcription" emit="transcription"
                         wait-for="#facsimile" />
                     <pb-facsimile id="facsimile" base-uri="https://apps.existsolutions.com/cantaloupe/iiif/2/"
-                        default-zoom-level="1" show-navigation-control="show-navigation-control"
+                        default-zoom-level="0" show-navigation-control="show-navigation-control"
                         show-navigator="show-navigator"
                         subscribe="transcription" />
                     <pb-view id="view2" src="document1" map="cortez-translation" xpath="//text[@type='source']"

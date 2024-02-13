@@ -2,8 +2,8 @@ xquery version "3.1";
 
 module namespace dapi="http://teipublisher.com/api/documents";
 
-import module namespace router="http://e-editiones.org/roaster";
-import module namespace errors = "http://e-editiones.org/roaster/errors";
+import module namespace router="http://exist-db.org/xquery/router";
+import module namespace errors = "http://exist-db.org/xquery/router/errors";
 import module namespace config="http://www.tei-c.org/tei-simple/config" at "../../config.xqm";
 import module namespace pages="http://www.tei-c.org/tei-simple/pages" at "../pages.xql";
 import module namespace pm-config="http://www.tei-c.org/tei-simple/pm-config" at "../../pm-config.xql";
@@ -16,7 +16,6 @@ import module namespace process="http://exist-db.org/xquery/process" at "java:or
 import module namespace xslfo="http://exist-db.org/xquery/xslfo" at "java:org.exist.xquery.modules.xslfo.XSLFOModule";
 import module namespace epub="http://exist-db.org/xquery/epub" at "../epub.xql";
 import module namespace docx="http://existsolutions.com/teipublisher/docx";
-import module namespace cutil="http://teipublisher.com/api/cache" at "caching.xql";
 
 declare namespace tei="http://www.tei-c.org/ns/1.0";
 
@@ -24,34 +23,14 @@ declare variable $dapi:CACHE := true();
 
 declare variable $dapi:CACHE_COLLECTION := $config:app-root || "/cache";
 
-declare function dapi:metadata($request as map(*)) {
-    let $doc := xmldb:decode($request?parameters?id)
-    let $xml := config:get-document($doc)
-    return
-        if (exists($xml)) then
-            let $config := tpu:parse-pi(root($xml), ())
-            return map {
-                "title": nav:get-document-title($config, root($xml)/*) => normalize-space(),
-                "view": $config?view,
-                "odd": $config?odd,
-                "template": $config?template,
-                "collection": substring-after(util:collection-name($xml), $config:data-root || "/"),
-                "lastModified": xmldb:last-modified(util:collection-name($xml), util:document-name($xml))
-            }
-        else
-            error($errors:NOT_FOUND, "Document " || $doc || " not found")
-};
-
 declare function dapi:delete($request as map(*)) {
     let $id := xmldb:decode($request?parameters?id)
     let $doc := config:get-document($id)
     return
         if ($doc) then
             let $del := xmldb:remove(util:collection-name($doc), util:document-name($doc))
-            return (
-                session:set-attribute($config:session-prefix || ".works", ()),
-                router:response(204, 'Document deleted')
-            )
+            return
+                router:response(410, '')
         else
             error($errors:NOT_FOUND, "Document " || $id || " not found")
 };
@@ -75,73 +54,31 @@ declare function dapi:source($request as map(*)) {
 };
 
 declare function dapi:html($request as map(*)) {
-    dapi:generate-html($request, "web")
-};
-
-declare function dapi:print($request as map(*)) {
-    dapi:generate-html($request, "print")
-};
-
-declare %private function dapi:generate-html($request as map(*), $outputMode as xs:string) {
     let $doc := xmldb:decode($request?parameters?id)
-    let $addStyles :=
-        for $href in $request?parameters?style
-        return
-            <link rel="Stylesheet" href="{$href}"/>
-    let $addScripts :=
-        for $src in $request?parameters?script
-        return
-            <script src="{$src}"></script>
     return
         if ($doc) then
-            let $xml := config:get-document($doc)
+            let $xml := config:get-document($doc)/*
             return
                 if (exists($xml)) then
                     let $config := tpu:parse-pi(root($xml), ())
-                    let $out := 
-                        if ($outputMode = 'print') then
-                            $pm-config:print-transform($xml, map { "root": $xml, "webcomponents": 7 }, $config?odd)
-                        else
-                            $pm-config:web-transform($xml, map { "root": $xml, "webcomponents": 7 }, $config?odd)
-                    let $styles := (
-                        $addStyles,
-                        if (count($out) > 1) then $out[1] else (),
-                        <link rel="stylesheet" type="text/css" href="transform/{replace($config?odd, "^.*?/?([^/]+)\.odd$", "$1")}.css"/>
-                    )
+                    let $out := $pm-config:web-transform($xml, map { "root": $xml, "webcomponents": 7 }, $config?odd)
+                    let $styles := if (count($out) > 1) then $out[1] else ()
                     return
-                        dapi:postprocess(($out[2], $out[1])[1], $styles, $addScripts, $request?parameters?base, $request?parameters?wc)
+                        dapi:postprocess(($out[2], $out[1])[1], $styles, $config?odd, $request?parameters?base, $request?parameters?wc)
                 else
                     error($errors:NOT_FOUND, "Document " || $doc || " not found")
         else
             error($errors:BAD_REQUEST, "No document specified")
 };
 
-declare function dapi:postprocess($nodes as node()*, $styles as element()*, $scripts as element()*,
-    $base as xs:string?, $components as xs:string?) {
+declare function dapi:postprocess($nodes as node()*, $styles as element()?, $odd as xs:string?, 
+    $base as xs:string?, $components as xs:boolean?) {
     for $node in $nodes
     return
         typeswitch($node)
-            case element(html) return
-                element { node-name($node) } {
-                    $node/@*,
-                    if (empty($node/head)) then
-                        <head>
-                            {
-                                if ($base) then
-                                    <base href="{$base}"/>
-                                else
-                                    ()
-                            }
-                            <meta charset="utf-8"/>
-                            { $styles }
-                            { $scripts }
-                            { dapi:webcomponents($components) }
-                        </head>
-                    else
-                        (),
-                    dapi:postprocess($node/node(), $styles, $scripts, $base, $components)
-                }
             case element(head) return
+                let $oddName := replace($odd, "^.*/([^/\.]+)\.?.*$", "$1")
+                return
                     element { node-name($node) } {
                         $node/@*,
                         if ($base) then
@@ -150,19 +87,44 @@ declare function dapi:postprocess($nodes as node()*, $styles as element()*, $scr
                             (),
                         <meta charset="utf-8"/>,
                         $node/node(),
+                        <link rel="stylesheet" type="text/css" href="transform/{replace($oddName, "^(.*)\.odd$", "$1")}.css"/>,
+                        <link rel="stylesheet" type="text/css" href="transform/{replace($oddName, "^(.*)\.odd$", "$1")}-print.css" media="print"/>,
                         $styles,
-                        $scripts,
-                        dapi:webcomponents($components)
+                        if ($components) then (
+                            <style rel="stylesheet" type="text/css">
+                            a[rel=footnote] {{
+                                font-size: var(--pb-footnote-font-size, var(--pb-content-font-size, 75%));
+                                font-family: var(--pb-footnote-font-family, --pb-content-font-family);
+                                vertical-align: super;
+                                text-decoration: none;
+                                padding: var(--pb-footnote-padding, 0 0 0 .25em);
+                            }}
+                            .footnote .fn-number {{
+                                float: left;
+                                font-size: var(--pb-footnote-font-size, var(--pb-content-font-size, 75%));
+                            }}
+                            </style>,
+                            <script defer="defer" src="https://unpkg.com/@webcomponents/webcomponentsjs@2.4.3/webcomponents-loader.js"></script>,
+                            switch ($config:webcomponents)
+                                case "dev" return
+                                    <script type="module" src="{$config:webcomponents-cdn}/src/pb-components-bundle.js"></script>
+                                case "local" return
+                                    <script type="module" src="resources/scripts/pb-components-bundle.js"></script>
+                                default return
+                                    <script type="module" src="{$config:webcomponents-cdn}@{$config:webcomponents}/dist/pb-components-bundle.js"></script>
+                        ) else
+                            ()
+
                     }
             case element(body) return
                 let $content := (
-                    dapi:postprocess($node/node(), $styles, $scripts, $base, $components),
+                    dapi:postprocess($node/node(), $styles, $odd, $base, $components),
                     let $footnotes := 
                         for $fn in root($node)//*[@class = "footnote"]
                         return
                             element { node-name($fn) } {
                                 $fn/@*,
-                                dapi:postprocess($fn/node(), $styles, $scripts, $base, $components)
+                                dapi:postprocess($fn/node(), $styles, $odd, $base, $components)
                             }
                     return
                         nav:output-footnotes($footnotes)
@@ -170,7 +132,7 @@ declare function dapi:postprocess($nodes as node()*, $styles as element()*, $scr
                 return
                     element { node-name($node) } {
                         $node/@*,
-                        if ($components = 'full' and not($node//pb-page)) then
+                        if ($components and not($node//pb-page)) then
                             <pb-page endpoint="{$base}">{$content}</pb-page>
                         else
                             $content
@@ -181,37 +143,10 @@ declare function dapi:postprocess($nodes as node()*, $styles as element()*, $scr
                 else
                     element { node-name($node) } {
                         $node/@*,
-                        dapi:postprocess($node/node(), $styles, $scripts, $base, $components)
+                        dapi:postprocess($node/node(), $styles, $odd, $base, $components)
                     }
             default return
                 $node
-};
-
-declare %private function dapi:webcomponents($components as xs:string?) {
-    if ($components) then (
-        <style rel="stylesheet" type="text/css">
-        a[rel=footnote] {{
-            font-size: var(--pb-footnote-font-size, var(--pb-content-font-size, 75%));
-            font-family: var(--pb-footnote-font-family, --pb-content-font-family);
-            vertical-align: super;
-            text-decoration: none;
-            padding: var(--pb-footnote-padding, 0 0 0 .25em);
-        }}
-        .footnote .fn-number {{
-            float: left;
-            font-size: var(--pb-footnote-font-size, var(--pb-content-font-size, 75%));
-        }}
-        </style>,
-        <script defer="defer" src="https://cdn.jsdelivr.net/npm/web-components-loader/lib/index.min.js"></script>,
-        switch ($config:webcomponents)
-            case "dev" return
-                <script type="module" src="{$config:webcomponents-cdn}/src/pb-components-bundle.js"></script>
-            case "local" return
-                <script type="module" src="resources/scripts/pb-components-bundle.js"></script>
-            default return
-                <script type="module" src="{$config:webcomponents-cdn}@{$config:webcomponents}/dist/pb-components-bundle.js"></script>
-    ) else
-        ()
 };
 
 declare function dapi:latex($request as map(*)) {
@@ -326,7 +261,7 @@ declare function dapi:pdf($request as map(*)) {
                     response:stream-binary($cached, "media-type=application/pdf", $id || ".pdf")
                 ) else
                     let $start := util:system-time()
-                    let $fo := $pm-config:fo-transform($doc, map { "root": $doc }, $config?odd)
+                    let $fo := $pm-config:print-transform($doc, map { "root": $doc }, $config?odd)
                     return (
                         if ($request?parameters?source) then
                             router:response(200, "application/xml", $fo)
@@ -356,13 +291,13 @@ declare function dapi:epub($request as map(*)) {
         if (exists($work)) then
             let $entries := dapi:work2epub($request, $id, $work, $request?parameters?lang)
             return
-                ( 
+                (
                     if ($request?parameters?token) then
                         response:set-cookie("simple.token", $request?parameters?token)
                     else
                         (),
                     response:set-header("Content-Disposition", concat("attachment; filename=", concat($id, '.epub'))),
-                    response:stream-binary( 
+                    response:stream-binary(
                         compression:zip( $entries, true() ),
                         'application/epub+zip',
                         concat($id, '.epub')
@@ -373,13 +308,7 @@ declare function dapi:epub($request as map(*)) {
 };
 
 declare %private function dapi:work2epub($request as map(*), $id as xs:string, $work as document-node(), $lang as xs:string?) {
-    let $imagesCollection := $request?parameters?images-collection
-    let $coverImage := $request?parameters?cover-image
-    let $config := map:merge(($config:epub-config($work, $lang), map {
-        'imagesCollection': $imagesCollection,
-        'skipTitle': $request?parameters?skip-title,
-        'coverImage': $coverImage
-    }))
+    let $config := $config:epub-config($work, $lang)
     let $odd := head(($request?parameters?odd, $config:default-odd))
     let $oddName := replace($odd, "^([^/\.]+).*$", "$1")
     let $cssDefault := util:binary-to-string(util:binary-doc($config:output-root || "/" || $oddName || ".css"))
@@ -392,55 +321,43 @@ declare %private function dapi:work2epub($request as map(*), $id as xs:string, $
 };
 
 declare function dapi:get-fragment($request as map(*)) {
-    let $path := xmldb:decode-uri($request?parameters?doc)
-    let $docs := config:get-document($path)
-    return
-        if($docs) 
-        then (
-            cutil:check-last-modified($request, $docs, dapi:get-fragment(?, ?, $path))
-        ) else (
-            router:response(404, "text/text", $path)    
-        )
-};
-
-declare function dapi:get-fragment($request as map(*), $docs as node()*, $path as xs:string) {
+    let $doc := xmldb:decode-uri($request?parameters?doc)
     let $view := head(($request?parameters?view, $config:default-view))
     let $xml :=
-        if (exists($request?parameters?id) and $request?parameters?id != "" and $request?parameters?view != 'single') then
-            for $document in $docs
-            let $config := tpu:parse-pi(root($document), $view)
-            let $context := dapi:apply-xpath($request, $document)
+        if ($request?parameters?xpath) then
+            for $document in config:get-document($doc)
+            let $namespace := namespace-uri-from-QName(node-name($document/*))
+            let $xquery := "declare default element namespace '" || $namespace || "'; $document" || $request?parameters?xpath
+            let $data := util:eval($xquery)
+            return
+                if ($data) then
+                    pages:load-xml($data, $view, $request?parameters?root, $doc)
+                else
+                    ()
+
+        else if (exists($request?parameters?id)) then (
+            for $document in config:get-document($doc)
+            let $config := tpu:parse-pi($document, $view)
             let $data :=
                 if (count($request?parameters?id) = 1) then
-                    if ($view = "div") then
-                        nav:get-section-for-node($config, $context/id($request?parameters?id))
-                    else
-                        $document/id($request?parameters?id)
+                    nav:get-section-for-node($config, $document/id($request?parameters?id))
                 else
-                    let $ms1 := $context/id($request?parameters?id[1])
-                    let $ms2 := $context/id($request?parameters?id[2])
+                    let $ms1 := $document/id($request?parameters?id[1])
+                    let $ms2 := $document/id($request?parameters?id[2])
                     return
                         if ($ms1 and $ms2) then
-                            nav-tei:milestone-chunk($ms1, $ms2, $context/tei:TEI)
+                            nav-tei:milestone-chunk($ms1, $ms2, $document/tei:TEI)
                         else
                             ()
             return
                 map {
-                    "config": map:merge(($config, map { "context": $context })),
+                    "config": map:merge(($config, map { "context": $document })),
                     "odd": $config?odd,
                     "view": $config?view,
                     "data": $data
                 }
-        else if ($request?parameters?xpath) then
-            for $document in $docs
-            let $data := dapi:apply-xpath($request, $document)
-            return
-                if ($data) then
-                    pages:load-xml($data, $view, $request?parameters?root, $path)
-                else
-                    ()
-        else
-            pages:load-xml($docs, $view, $request?parameters?root, $path)
+        ) else
+            pages:load-xml($view, $request?parameters?root, $doc)
     return
         if ($xml?data) then
             let $userParams :=
@@ -457,7 +374,7 @@ declare function dapi:get-fragment($request as map(*), $docs as node()*, $path a
                 else
                     $xml?data
             let $data :=
-                if (empty($request?parameters?xpath) and $request?parameters?highlight and exists(session:get-attribute($config:session-prefix || ".search"))) then
+                if (empty($request?parameters?xpath) and $request?parameters?highlight and exists(session:get-attribute($config:session-prefix || ".query"))) then
                     query:expand($xml?config, $mapped)[1]
                 else
                     $mapped
@@ -474,7 +391,7 @@ declare function dapi:get-fragment($request as map(*), $docs as node()*, $path a
                     default return
                         $content
             let $transformed := dapi:extract-footnotes($html[1])
-            let $path := replace($path, "^.*/([^/]+)$", "$1")
+            let $doc := replace($doc, "^.*/([^/]+)$", "$1")
             return
                 if ($request?parameters?format = "html") then
                     router:response(200, "text/html", $transformed?content)
@@ -486,10 +403,8 @@ declare function dapi:get-fragment($request as map(*), $docs as node()*, $path a
                             map {
                                 "format": $request?parameters?format,
                                 "view": $view,
-                                "doc": $path,
+                                "doc": $doc,
                                 "root": $request?parameters?root,
-                                "rootNode": util:node-id($xml?data[1]),
-                                "id": $content/@xml:id/string(),
                                 "odd": $xml?config?odd,
                                 "next":
                                     if ($next) then
@@ -535,17 +450,7 @@ declare function dapi:get-fragment($request as map(*), $docs as node()*, $path a
                             }
                         )
         else
-            error($errors:NOT_FOUND, "Document " || $path || " not found")
-};
-
-declare %private function dapi:apply-xpath($request as map(*), $data as node()) {
-    if ($request?parameters?xpath) then
-        let $namespace := namespace-uri-from-QName(node-name(root($data)/*))
-        let $xquery := "declare default element namespace '" || $namespace || "'; $data" || $request?parameters?xpath
-        return
-            util:eval($xquery)
-    else
-        $data
+            error($errors:NOT_FOUND, "Document " || $doc || " not found")
 };
 
 declare function dapi:get-collection($data) {
@@ -570,29 +475,20 @@ declare %private function dapi:extract-footnotes($html as element()*) {
 
 declare function dapi:table-of-contents($request as map(*)) {
     let $doc := xmldb:decode-uri($request?parameters?id)
-    let $documents := config:get-document($doc)
+    let $view := head(($request?parameters?view, $config:default-view))
+    let $xml := pages:load-xml($view, (), $doc)
     return
-        if($documents)
-        then (
-            cutil:check-last-modified($request, $documents, function($request as map(*), $documents as node()*) {
-                let $xml := pages:load-xml($documents, $request?parameters?view, (), $doc)
-                return
-                if (exists($xml)) then
-                    pages:toc-div(root($xml?data), $xml, $request?parameters?target, $request?parameters?icons)
-                else
-                    error($errors:NOT_FOUND, "Document " || $doc || " not found")
-                })
-        ) else (
-            router:response(404, "text/text", $doc)        
-        )
+        if (exists($xml)) then
+            pages:toc-div(root($xml?data), $xml, $request?parameters?target, $request?parameters?icons)
+        else
+            error($errors:NOT_FOUND, "Document " || $doc || " not found")
 };
 
 declare function dapi:preview($request as map(*)) {
     let $config := tpu:parse-pi($request?body, (), $request?parameters?odd)
     let $html := $pm-config:web-transform($request?body, map { "root": $request?body, "webcomponents": 7 }, $config?odd)
-    let $styles := <link rel="stylesheet" type="text/css" href="transform/{replace($config?odd, "^.*?/?([^/]+)\.odd$", "$1")}.css"/>
     return
-        dapi:postprocess($html, $styles, (), $request?parameters?base, $request?parameters?wc)
+        dapi:postprocess($html, (), $config?odd, $request?parameters?base, $request?parameters?wc)
 };
 
 declare function dapi:convert-docx($request as map(*)) {

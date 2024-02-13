@@ -1,5 +1,5 @@
-<?teipublisher template="translation.html" odd="serafin.odd" view="div" media="print latex epub"?>
-<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="MS2" n="Bb">
+<?teipublisher template="translation.html" odd="serafin.odd" view="div"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="MS2">
    <teiHeader>
       <fileDesc>
          <titleStmt>
@@ -42,22 +42,12 @@
          </sourceDesc>
       </fileDesc>
       <profileDesc>
-         <abstract><p>
-            A 15th century manuscript letter to Mikołaj Orlik demonstrating alignment between Latin original and parallel Polish translation on the segment level. Both are contained in the same document and selected via an XPath expression passed to the <tag>pb-view</tag>. The corresponding segments are highlighted on mouseover.</p>
-         </abstract>
          <textClass>
             <catRef scheme="#genre" target="#correspondence"/>
             <catRef scheme="#form" target="#manuscript"/>
-            <catRef scheme="#feature" target="#translation"/>
-            <catRef scheme="#feature" target="#person"/>
-            <catRef scheme="#feature" target="#place"/>
-            <catRef scheme="#feature" target="#alignment"/>
-            <catRef scheme="#feature" target="#ltr"/>
-            <catRef scheme="#period" target="#medieval"/>
          </textClass>
          <langUsage>
             <language ident="la">Latin</language>
-            <language ident="pl">Polish</language>
          </langUsage>
          <particDesc>
             <listPerson>

@@ -35,16 +35,12 @@ import module namespace css="http://www.tei-c.org/tei-simple/xquery/css";
 
 import module namespace tei="http://existsolutions.com/xquery/functions/tei";
 
-import module namespace ext-docx="http://www.tei-c.org/tei-simple/xquery/functions/docx";
-
-import module namespace global="http://www.tei-c.org/tei-simple/config" at "../modules/config.xqm";
-
 (: generated template function for element spec: r :)
 declare %private function model:template-r6($config as map(*), $node as node()*, $params as map(*)) {
     <persName xmlns="http://www.tei-c.org/ns/1.0" ref="http://d-nb.info/gnd/{$config?apply-children($config, $node, $params?ref)}">{$config?apply-children($config, $node, $params?content)}</persName>
 };
 (: generated template function for element spec: r :)
-declare %private function model:template-r11($config as map(*), $node as node()*, $params as map(*)) {
+declare %private function model:template-r10($config as map(*), $node as node()*, $params as map(*)) {
     <hi xmlns="http://www.tei-c.org/ns/1.0" rend="{$config?apply-children($config, $node, $params?rend)}">{$config?apply-children($config, $node, $params?content)}</hi>
 };
 (: generated template function for element spec: cp:coreProperties :)
@@ -83,15 +79,13 @@ declare function model:transform($options as map(*), $input as node()*) {
         
         let $output := model:apply($config, $input)
         return
-            ext-docx:finish($config, $output)
+            tei:finish($config, $output)
     )
 };
 
 declare function model:apply($config as map(*), $input as node()*) {
         let $parameters := 
         if (exists($config?parameters)) then $config?parameters else map {}
-        let $mode := 
-        if (exists($config?mode)) then $config?mode else ()
         let $trackIds := 
         $parameters?track-ids
         let $get := 
@@ -114,14 +108,10 @@ declare function model:apply($config as map(*), $input as node()*) {
                                 if ($parameters?nstyle(.)/numFmt) then
                                     tei:listItem($config, ., ("tei-p3", css:map-rend-to-class(.)), ., (), map {"level": $parameters?nstyle(.)/@w:ilvl, "type": if ($parameters?nstyle(.)/numFmt[@w:val = 'bullet']) then  () else  'ordered'})
                                 else
-                                    if ($parameters?pstyle(.)/name[matches(@w:val, "^title", "i")]) then
-                                        (: The default "title" style gets level 0 assigned :)
-                                        tei:heading($config, ., ("tei-p4", css:map-rend-to-class(.)), ., 0)
+                                    if ($parameters?pstyle(.)/name[matches(@w:val, "^(heading|title|subtitle)", "i")]) then
+                                        tei:heading($config, ., ("tei-p4", css:map-rend-to-class(.)), ., let $l := $parameters?pstyle(.)//outlineLvl/@w:val return  if ($l) then $l/number() + 1 else 0)
                                     else
-                                        if ($parameters?pstyle(.)/name[matches(@w:val, "^(heading|subtitle)", "i")]) then
-                                            tei:heading($config, ., ("tei-p5", css:map-rend-to-class(.)), ., let $l := $parameters?pstyle(.)//outlineLvl/@w:val return  if ($l) then $l/number() + 1 else 1)
-                                        else
-                                            tei:paragraph($config, ., ("tei-p6", css:map-rend-to-class(.)), .)
+                                        tei:paragraph($config, ., ("tei-p5", css:map-rend-to-class(.)), .)
                     case element(r) return
                         if (drawing) then
                             tei:inline($config, ., ("tei-r1", css:map-rend-to-class(.)), .//pic:pic, map {})
@@ -153,34 +143,30 @@ declare function model:apply($config as map(*), $input as node()*) {
                                                 return
                                                                                                 tei:inline(map:merge(($config, map:entry("template", true()))), ., ("tei-r6", css:map-rend-to-class(.)), $content, map {"ref": replace(., '^.*?&#60;(.*)&#62;.*$', '$1')})
                                             else
-                                                if ($parameters?cstyle(.)/name[@w:val = 'tei:code']) then
-                                                    (: tei:code may contain angle brackets, so needs to be handled separately :)
-                                                    tei:inline($config, ., ("tei-r7", css:map-rend-to-class(.)), ., map {"tei_element": 'code', "tei_attributes": ()})
+                                                if ($parameters?cstyle(.)/name[@w:val = 'tei:tag']) then
+                                                    (: tei:tag may contain angle brackets, so needs to be handled separately :)
+                                                    tei:inline($config, ., ("tei-r7", css:map-rend-to-class(.)), ., map {"tei_element": 'tag'})
                                                 else
-                                                    if ($parameters?cstyle(.)/name[@w:val = 'tei:tag']) then
-                                                        (: tei:tag may contain angle brackets, so needs to be handled separately :)
-                                                        tei:inline($config, ., ("tei-r8", css:map-rend-to-class(.)), ., map {"tei_element": 'tag'})
+                                                    if ($parameters?cstyle(.)/name[starts-with(@w:val, 'tei:')] and matches(., '&#60;.*=.*&#62;')) then
+                                                        (: Character style starts with 'tei:' and has parameters in content, which will be interpreted as attribute list :)
+                                                        tei:inline($config, ., ("tei-r8", css:map-rend-to-class(.)), ., map {"tei_element": substring-after($parameters?cstyle(.)/name/@w:val, 'tei:'), "tei_attributes": tokenize(replace(., '^.*?&#60;(.*)&#62;.*$', '$1'), '\s*;\s*')})
                                                     else
-                                                        if ($parameters?cstyle(.)/name[starts-with(@w:val, 'tei:')] and matches(., '&#60;.*=.*&#62;')) then
-                                                            (: Character style starts with 'tei:' and has parameters in content, which will be interpreted as attribute list :)
-                                                            tei:inline($config, ., ("tei-r9", css:map-rend-to-class(.)), ., map {"tei_element": substring-after($parameters?cstyle(.)/name/@w:val, 'tei:'), "tei_attributes": tokenize(replace(., '^.*?&#60;(.*)&#62;.*$', '$1'), '\s*;\s*')})
+                                                        if ($parameters?cstyle(.)/name[starts-with(@w:val, 'tei:')]) then
+                                                            tei:inline($config, ., ("tei-r9", css:map-rend-to-class(.)), ., map {"tei_element": substring-after($parameters?cstyle(.)/name/@w:val, 'tei:')})
                                                         else
-                                                            if ($parameters?cstyle(.)/name[starts-with(@w:val, 'tei:')]) then
-                                                                tei:inline($config, ., ("tei-r10", css:map-rend-to-class(.)), ., map {"tei_element": substring-after($parameters?cstyle(.)/name/@w:val, 'tei:')})
-                                                            else
-                                                                if (rPr/(u|i|caps|b|strike) or $parameters?cstyle(.)/rPr/(u|i|caps|b|strike)) then
-                                                                    let $params := 
-                                                                        map {
-                                                                            "rend": (rPr/(u|i|caps|b|strike), $parameters?cstyle(.)/rPr/(u|i|caps|b|strike)) ! local-name(.),
-                                                                            "content": .
-                                                                        }
+                                                            if (rPr/(u|i|caps|b) or $parameters?cstyle(.)/rPr/(u|i|caps|b)) then
+                                                                let $params := 
+                                                                    map {
+                                                                        "rend": (rPr/(u|i|caps|b), $parameters?cstyle(.)/rPr/(u|i|caps|b)) ! local-name(.),
+                                                                        "content": .
+                                                                    }
 
-                                                                                                                                        let $content := 
-                                                                        model:template-r11($config, ., $params)
-                                                                    return
-                                                                                                                                        tei:inline(map:merge(($config, map:entry("template", true()))), ., ("tei-r11", css:map-rend-to-class(.)), $content, map {"rend": (rPr/(u|i|caps|b|strike), $parameters?cstyle(.)/rPr/(u|i|caps|b|strike)) ! local-name(.)})
-                                                                else
-                                                                    tei:inline($config, ., ("tei-r12", css:map-rend-to-class(.)), ., map {})
+                                                                                                                                let $content := 
+                                                                    model:template-r10($config, ., $params)
+                                                                return
+                                                                                                                                tei:inline(map:merge(($config, map:entry("template", true()))), ., ("tei-r10", css:map-rend-to-class(.)), $content, map {"rend": (rPr/(u|i|caps|b), $parameters?cstyle(.)/rPr/(u|i|caps|b)) ! local-name(.)})
+                                                            else
+                                                                tei:inline($config, ., ("tei-r11", css:map-rend-to-class(.)), ., map {})
                     case element(document) return
                         tei:document($config, ., ("tei-document", css:map-rend-to-class(.)), ($parameters?properties, .))
                     case element(bookmarkStart) return

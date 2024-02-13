@@ -92,8 +92,7 @@ describe('/api/generate [authenticated]', function () {
         `;
         const res = await axios.get(`http://localhost:8080/exist/rest/db?_query=${encodeURIComponent(query)}&_wrap=no`, {
             auth: {
-                "username": "admin",
-                "password": ""
+                "username": "admin"
             }
         });
         expect(res.status).to.equal(200);

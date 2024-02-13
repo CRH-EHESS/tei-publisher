@@ -12,11 +12,13 @@
 
     <title data-template="config:app-title"></title>
     <meta name="description" content="Deutsches Textarchiv" />
+    <link rel="stylesheet" type="text/css" href="resources/fonts/font.css" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Oswald&amp;display=swap" />
     <link rel="stylesheet" href="resources/css/theme.css" />
     <script type="module" src="pb-components-bundle.js" data-template="pages:load-components"></script>
     <style>
         body {
-            --pb-view-height: calc(100vh - 200px);
+            --pb-view-height: calc(100vh - 184px);
         }
 
         #view1 {
@@ -70,8 +72,7 @@
                     </div>
                 </pb-drawer>
                 <section class="breadcrumbs">
-                    <pb-view id="title-view1" src="document1" xpath="//teiHeader/fileDesc/titleStmt/title[@type='main']" view="single"
-                        disable-history="">
+                    <pb-view id="title-view1" src="document1" xpath="//teiHeader/fileDesc/titleStmt/title" view="single">
                         <pb-param name="header" value="short"/>
                     </pb-view>
                 </section>

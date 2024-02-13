@@ -31,22 +31,18 @@ declare function idx:get-metadata($root as element(), $field as xs:string) {
                 string-join((
                     $header//tei:msDesc/tei:head, $header//tei:titleStmt/tei:title[@type = 'main'],
                     $header//tei:titleStmt/tei:title,
-                    $root/dbk:info/dbk:title,
-                    root($root)//article-meta/title-group/article-title,
-                    root($root)//article-meta/title-group/subtitle
+                    $root/dbk:info/dbk:title
                 ), " - ")
             case "author" return (
                 $header//tei:correspDesc/tei:correspAction/tei:persName,
                 $header//tei:titleStmt/tei:author,
-                $root/dbk:info/dbk:author,
-                root($root)//article-meta/contrib-group/contrib/name
+                $root/dbk:info/dbk:author
             )
             case "language" return
                 head((
                     $header//tei:langUsage/tei:language/@ident,
                     $root/@xml:lang,
-                    $header/@xml:lang,
-                    root($root)/*/@xml:lang
+                    $header/@xml:lang
                 ))
             case "date" return head((
                 $header//tei:correspDesc/tei:correspAction/tei:date/@when,
@@ -57,42 +53,14 @@ declare function idx:get-metadata($root as element(), $field as xs:string) {
             ))
             case "genre" return (
                 idx:get-genre($header),
-                root($root)//dbk:info/dbk:keywordset[@vocab="#genre"]/dbk:keyword,
-                root($root)//article-meta/kwd-group[@kwd-group-type="genre"]/kwd
+                $root/dbk:info/dbk:keywordset[@vocab="#genre"]/dbk:keyword
             )
-            case "category" return
-                (root($root)/tei:TEI/@n, "ZZZ")[1]
-            case "feature" return (
-                idx:get-classification($header, 'feature'),
-                $root/dbk:info/dbk:keywordset[@vocab="#feature"]/dbk:keyword
-            )
-            case "form" return (
-                idx:get-classification($header, 'form'),
-                $root/dbk:info/dbk:keywordset[@vocab="#form"]/dbk:keyword
-            )
-            case "period" return (
-                idx:get-classification($header, 'period'),
-                $root/dbk:info/dbk:keywordset[@vocab="#period"]/dbk:keyword
-            )
-            case "content" return (
-                root($root)//body,
-                $root/dbk:section
-            )
-            case "place" return
-                ($root//tei:placeName/string(), $root//tei:name[@type="place"]/string())
             default return
                 ()
 };
 
 declare function idx:get-genre($header as element()?) {
     for $target in $header//tei:textClass/tei:catRef[@scheme="#genre"]/@target
-    let $category := id(substring($target, 2), doc($idx:app-root || "/data/taxonomy.xml"))
-    return
-        $category/ancestor-or-self::tei:category[parent::tei:category]/tei:catDesc
-};
-
-declare function idx:get-classification($header as element()?, $scheme as xs:string) {
-    for $target in $header//tei:textClass/tei:catRef[@scheme="#" || $scheme]/@target
     let $category := id(substring($target, 2), doc($idx:app-root || "/data/taxonomy.xml"))
     return
         $category/ancestor-or-self::tei:category[parent::tei:category]/tei:catDesc

@@ -6,11 +6,7 @@
                 <title>
                     Processing Model for Docbook v5
                     
-                  
-                 
-                 
-                  
-                 <desc>Processing of Docbook format</desc>
+                  <desc>Processing of Docbook format</desc>
                 </title>
                 <title type="short">Docbook v5 </title>
             </titleStmt>
@@ -101,7 +97,10 @@
                         <iframe src="[[src]]" width="[[width]]" height="[[height]]" frameborder="0" gesture="media" allow="encrypted-media" allowfullscreen="allowfullscreen"/>
                     </pb:template>
                 </pb:behaviour>
-                <rendition source="docbook.css"/>
+                <rendition selector="h3">
+                    font-family: serif;
+                    font-weight: 400;
+                </rendition>
             </tagsDecl>
         </encodingDesc>
     </teiHeader>
@@ -157,9 +156,6 @@
                     <model behaviour="document"/>
                 </elementSpec>
                 <elementSpec ident="info">
-                    <model output="print" predicate="parent::article|parent::book" behaviour="block" cssClass="frontmatter">
-            <param name="content" value="(title, if ($parameters?skipAuthors) then () else author, pubdate, abstract)"/>
-        </model>
                     <model output="latex" predicate="parent::article|parent::book" behaviour="inline">
             <param name="content" value="title"/>
             <param name="author" value="author"/>
@@ -234,11 +230,6 @@
             
             
             
-            
-            
-            
-            
-            
 
 
 
@@ -265,11 +256,6 @@
             
             
             
-            
-            
-            
-            
-            
             </outputRendition>
         </model>
                     <model predicate="parent::note" behaviour="heading">
@@ -278,7 +264,6 @@
                     <model predicate="parent::info and $parameters?header='short'" behaviour="link">
             <param name="uri" value="$parameters?doc"/>
         </model>
-                    <model predicate="parent::info" behaviour="heading" cssClass="doc-title"/>
                     <model behaviour="heading" cssClass="title">
             <param name="level" value="if ($parameters?view='single') then count(ancestor::section) + 1 else count($get(.)/ancestor::section)"/>
         </model>
@@ -292,7 +277,6 @@
                 <param name="content" value="title"/>
             </model>
         </modelSequence>
-                    <model output="print" behaviour="section"/>
                     <model output="web" behaviour="block">
             <param name="root" value="util:node-id($parameters?root)"/>
             <param name="nodeId" value="util:node-id($get(.))"/>
@@ -311,18 +295,8 @@
             
             
             
-            
-            
-            
-            
-            
             font-weight: 400;
 font-style: italic;
-            
-            
-            
-            
-            
             
             
             
@@ -442,10 +416,32 @@ font-style: italic;
             <outputRendition xml:space="preserve">
             
             
+            
+            
+            
+            
+            
+            
+            
+            
+
+
+
             font-family: monospace;
 margin: 1em 0 1em .5em;
 padding: 1em 0 1em .5em;
 white-space: pre-wrap;
+
+
+
+            
+            
+            
+            
+            
+            
+            
+            
             
             
             </outputRendition>
@@ -467,7 +463,7 @@ white-space: pre-wrap;
                 <param name="name" value="'pb-code-highlight'"/>
                 <param name="language" value="(@language, 'xml')[1]"/>
                 <param name="content" value="text()"/>
-                <param name="line-numbers" value="false()"/>
+                <param name="line-numbers" value="true()"/>
             </model>
         </modelGrp>
                     <model behaviour="block" cssClass="programlisting"/>
@@ -476,11 +472,6 @@ white-space: pre-wrap;
                     <model output="epub" behaviour="block">
             <param name="content" value="text()"/>
             <outputRendition xml:space="preserve">
-            
-            
-            
-            
-            
             
             
             
@@ -501,11 +492,6 @@ white-space: pre-wrap;
 
 
 
-            
-            
-            
-            
-            
             
             
             
@@ -557,11 +543,6 @@ white-space: pre-wrap;
             
             
             
-            
-            
-            
-            
-            
 
 
 
@@ -577,11 +558,6 @@ padding: 1em 0 1em .5em;
 
 
 
-            
-            
-            
-            
-            
             
             
             
@@ -629,11 +605,8 @@ padding: 1em 0 1em .5em;
                             </pb-edit-xml>
                         </pb:template>
         </model>
-                    <model predicate="@linkend" behaviour="webcomponent">
+                    <model predicate="@linkend" behaviour="link">
             <param name="uri" value="concat('?odd=', request:get-parameter('odd', ()), '&amp;amp;view=',                             request:get-parameter('view', ()), '&amp;amp;id=', @linkend)"/>
-            <param name="name" value="'pb-link'"/>
-            <param name="xml-id" value="@linkend"/>
-            <param name="emit" value="'transcription'"/>
         </model>
                     <model predicate="@xlink:show='new'" behaviour="link">
             <param name="uri" value="@xlink:href"/>
@@ -689,11 +662,6 @@ Not available in PDF edition. Go to \url{[[content]]} to view.
             
             
             
-            
-            
-            
-            
-            
 
 
 
@@ -707,11 +675,6 @@ border-left: 3px solid #c0c0c0;
 
 
 
-            
-            
-            
-            
-            
             
             
             

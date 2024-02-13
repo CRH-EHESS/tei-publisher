@@ -16,12 +16,14 @@ describe('/{doc}', function () {
         const res = await axios.get(`${server}/test%2Forlik_to_serafin.xml`);
         expect(res.status).to.equal(200);
 
+        const parser = new JSDOM(res.data);
+        const doc = parser.window.document;
         const fragment = JSDOM.fragment(res.data);
-        const meta = fragment.querySelector('meta[name="description"]');
+        const meta = doc.querySelector('meta[name="description"]');
         expect(meta).to.exist;
         expect(meta.getAttribute('content')).to.equal('Serafin Letter');
 
-        const pbDocument = fragment.querySelector('pb-document');
+        const pbDocument = doc.querySelector('pb-document');
         expect(pbDocument).to.exist;
         expect(pbDocument.getAttribute('path')).to.equal('test/orlik_to_serafin.xml');
         expect(pbDocument.getAttribute('odd')).to.equal('serafin');
@@ -47,10 +49,8 @@ describe('/{file}.html', function () {
         const res = await axios.get(`${server}/index.html`);
         expect(res.status).to.equal(200);
         const fragment = JSDOM.fragment(res.data);
-        const pbBrowse = fragment.querySelector('#search-form');
+        const pbBrowse = fragment.querySelector('pb-browse-docs');
         expect(pbBrowse).to.exist;
-        // check if templating parameter got expanded
-        expect(pbBrowse.getAttribute('value')).to.not.contain('${query}');
 
         expect(res).to.satisfyApiSpec;
     });

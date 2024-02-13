@@ -35,8 +35,7 @@ main {
 }
 
 .breadcrumbs {
-    font-family: var(--pb-heading-font-family);
-    font-size: var(--pb-base-font-size);
+    font-family: var(--pb-base-font-family);
     --pb-view-max-width: auto;
     grid-column: 2 / 2;
 }
@@ -46,7 +45,7 @@ main {
     overflow: auto;
     font-family: var(--pb-base-font-family);
     font-size: 20px;
-    padding: 1em 0 0 0;
+    padding: 0;
 }
 
 footer {

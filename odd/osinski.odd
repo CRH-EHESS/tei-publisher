@@ -4,7 +4,7 @@
     <teiHeader>
         <fileDesc>
             <titleStmt>
-                <title>Bogactwa mowy polskiej<desc>Polish dictionary example</desc></title>
+                <title>Bogactwa mowy polskiej</title>
             </titleStmt>
             <publicationStmt>
                 <publisher>eXistSolutions GmbH</publisher>
@@ -57,7 +57,6 @@
                     <model predicate="starts-with(@facs, 'iiif:')" behaviour="webcomponent" cssClass="facs" useSourceRendition="true">
             <param name="name" value="'pb-facs-link'"/>
             <param name="content" value="@n"/>
-            <param name="emit" value="'transcription'"/>
             <param name="facs" value="replace(@facs, '^iiif:(.*)$', '$1')"/>
             <outputRendition xml:space="preserve">
             font-size: 16px;
@@ -248,10 +247,6 @@
             </model>
             <model behaviour="block" cssClass="header-short">
                 <param name="content" value="publicationStmt"/>
-            </model>
-            <model behaviour="block" cssClass="sample-description">
-                <desc>Output abstract containing demo description</desc>
-                <param name="content" value="../profileDesc/abstract"/>
             </model>
         </modelSequence>
                     <model behaviour="title">

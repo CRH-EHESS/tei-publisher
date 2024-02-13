@@ -96,7 +96,7 @@ keywordstyle=\color{myblue}
 \end{document}]``
 };
 (: generated template function for element spec: info :)
-declare %private function model:template-info2($config as map(*), $node as node()*, $params as map(*)) {
+declare %private function model:template-info($config as map(*), $node as node()*, $params as map(*)) {
     ``[`{string-join($config?apply-children($config, $node, $params?content))}` \author{`{string-join($config?apply-children($config, $node, $params?author))}`}
 \maketitle]``
 };
@@ -144,7 +144,7 @@ declare function model:transform($options as map(*), $input as node()*) {
     let $config :=
         map:merge(($options,
             map {
-                "output": ["latex"],
+                "output": ["latex","print"],
                 "odd": "/db/apps/tei-publisher/odd/docbook.odd",
                 "apply": model:apply#2,
                 "apply-children": model:apply-children#3
@@ -156,15 +156,13 @@ declare function model:transform($options as map(*), $input as node()*) {
         
         let $output := model:apply($config, $input)
         return
-            latex:finish($config, $output)
+            $output
     )
 };
 
 declare function model:apply($config as map(*), $input as node()*) {
         let $parameters := 
         if (exists($config?parameters)) then $config?parameters else map {}
-        let $mode := 
-        if (exists($config?mode)) then $config?mode else ()
         let $trackIds := 
         $parameters?track-ids
         let $get := 
@@ -198,24 +196,24 @@ declare function model:apply($config as map(*), $input as node()*) {
                                 }
 
                                                         let $content := 
-                                model:template-info2($config, ., $params)
+                                model:template-info($config, ., $params)
                             return
-                                                        latex:inline(map:merge(($config, map:entry("template", true()))), ., ("tei-info2", css:map-rend-to-class(.)), $content)
+                                                        latex:inline(map:merge(($config, map:entry("template", true()))), ., ("tei-info1", css:map-rend-to-class(.)), $content)
                         else
                             if (not(parent::article or parent::book)) then
-                                latex:block($config, ., ("tei-info3", css:map-rend-to-class(.)), .)
+                                latex:block($config, ., ("tei-info2", css:map-rend-to-class(.)), .)
                             else
                                 if ($parameters?header='short') then
                                     (
-                                        latex:heading($config, ., ("tei-info5", css:map-rend-to-class(.)), title, 5),
+                                        latex:heading($config, ., ("tei-info4", css:map-rend-to-class(.)), title, 5),
                                         if (author) then
-                                            latex:block($config, ., ("tei-info6", css:map-rend-to-class(.)), author)
+                                            latex:block($config, ., ("tei-info5", css:map-rend-to-class(.)), author)
                                         else
                                             ()
                                     )
 
                                 else
-                                    latex:block($config, ., ("tei-info7", css:map-rend-to-class(.)), (title, if ($parameters?skipAuthors) then () else author, pubdate, abstract))
+                                    latex:block($config, ., ("tei-info6", css:map-rend-to-class(.)), (title, if ($parameters?skipAuthors) then () else author, pubdate, abstract))
                     case element(author) return
                         if (preceding-sibling::author) then
                             let $params := 
@@ -280,10 +278,7 @@ declare function model:apply($config as map(*), $input as node()*) {
                                         if (parent::info and $parameters?header='short') then
                                             latex:link($config, ., ("tei-title5", css:map-rend-to-class(.)), ., $parameters?doc, map {})
                                         else
-                                            if (parent::info) then
-                                                latex:heading($config, ., ("tei-title6", "doc-title", css:map-rend-to-class(.)), ., ())
-                                            else
-                                                latex:heading($config, ., ("tei-title7", "title", css:map-rend-to-class(.)), ., if ($parameters?view='single') then count(ancestor::section) + 1 else count($get(.)/ancestor::section))
+                                            latex:heading($config, ., ("tei-title6", "title", css:map-rend-to-class(.)), ., if ($parameters?view='single') then count(ancestor::section) + 1 else count($get(.)/ancestor::section))
                     case element(section) return
                         if ($parameters?mode='breadcrumbs') then
                             (
@@ -292,7 +287,7 @@ declare function model:apply($config as map(*), $input as node()*) {
                             )
 
                         else
-                            latex:block($config, ., ("tei-section5", css:map-rend-to-class(.)), .)
+                            latex:block($config, ., ("tei-section4", css:map-rend-to-class(.)), .)
                     case element(para) return
                         latex:paragraph($config, ., ("tei-para", css:map-rend-to-class(.)), .)
                     case element(emphasis) return
@@ -386,8 +381,7 @@ declare function model:apply($config as map(*), $input as node()*) {
                         latex:inline($config, ., ("tei-tag", "code", css:map-rend-to-class(.)), .)
                     case element(link) return
                         if (@linkend) then
-                            (: No function found for behavior: webcomponent :)
-                            $config?apply($config, ./node())
+                            latex:link($config, ., ("tei-link3", css:map-rend-to-class(.)), ., concat('?odd=', request:get-parameter('odd', ()), '&amp;view=',                             request:get-parameter('view', ()), '&amp;id=', @linkend), map {})
                         else
                             if (@xlink:show='new') then
                                 latex:link($config, ., ("tei-link4", css:map-rend-to-class(.)), ., @xlink:href, map {"target": '_new'})

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?teipublisher template="cortez.html" odd="dantiscus.odd" view="page" media="epub"?>
-<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="CIDTC3823" n="Cd">
+<?teipublisher template="cortez.html" odd="dantiscus.odd" view="page"?>
+<TEI xmlns="http://www.tei-c.org/ns/1.0" xml:id="CIDTC3823">
    <teiHeader>
       <fileDesc>
          <titleStmt>
@@ -46,24 +46,12 @@
          </sourceDesc>
       </fileDesc>
       <profileDesc>
-         <abstract>
-            <p>Another letter showing complex alignment between transcription and translation. The translation does not contain page breaks, so the alignment has to be computed dynamically for each page using a mapping function. Additionally incorporates a IIF view of the facsimile in the middle column.</p>
-         </abstract>
          <textClass>
             <catRef scheme="#genre" target="#correspondence"/>
             <catRef scheme="#form" target="#manuscript"/>
-            <catRef scheme="#feature" target="#image"/>
-            <catRef scheme="#feature" target="#translation"/>
-            <catRef scheme="#feature" target="#pages"/>
-            <catRef scheme="#feature" target="#alignment"/>
-            <catRef scheme="#feature" target="#person"/>
-            <catRef scheme="#feature" target="#place"/>
-            <catRef scheme="#feature" target="#ltr"/>
-            <catRef scheme="#period" target="#early-modern"/>
          </textClass>
          <langUsage>
             <language ident="es">Spanish</language>
-            <language ident="pl">Polish</language>
          </langUsage>
          <particDesc>
             <listPerson>
