@@ -15,10 +15,12 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     gnupg
 
-# Install LaTeX to enable PDF & TeX exports
+# PATCH CRH 13/02/2024
+# Add LaTeX
+# Install LaTeX and necessary packages
 RUN apt-get update && \
     apt-get install -y texlive texlive-latex-extra
-
+# END PATCH
 
 RUN mkdir -p /etc/apt/keyrings && \
     curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
@@ -88,8 +90,9 @@ RUN curl -L -o /tmp/templating-${TEMPLATING_VERSION}.xar http://exist-db.org/exi
 
 FROM duncdrum/existdb:6.2.0-debug-j8
 
-# Install LaTeX to enable PDF & TeX exports
-# Copy LaTeX binaries and dependencies from the builder
+# PATCH CRH 13/02/2024
+# Add LaTeX
+# Copy LaTeX binaries and dependencies from stage 1
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libkpathsea.so.6 /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /etc/texmf /etc/texmf
 COPY --from=builder /var/lib/tex-common /var/lib/tex-common
@@ -98,7 +101,7 @@ COPY --from=builder /usr/bin/*tex* /usr/local/bin/
 COPY --from=builder /usr/share/texlive /usr/share/texlive
 COPY --from=builder /usr/share/tex-common /usr/share/tex-common
 COPY --from=builder /usr/share/texmf /usr/share/texmf
-
+# END PATCH
 
 
 COPY --from=tei /tmp/tei-publisher-app/build/*.xar /exist/autodeploy/
