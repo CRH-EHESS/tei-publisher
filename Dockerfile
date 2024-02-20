@@ -90,16 +90,14 @@ FROM duncdrum/existdb:6.2.0-debug-j8
 
 # Install LaTeX to enable PDF & TeX exports
 # Copy LaTeX binaries and dependencies from the builder
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libkpathsea.so.6 /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/lib* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /etc/texmf /etc/texmf
 COPY --from=builder /var/lib/tex-common /var/lib/tex-common
 COPY --from=builder /var/lib/texmf /var/lib/texmf
-COPY --from=builder /usr/bin/*tex* /usr/local/bin/
+COPY --from=builder /usr/bin/*tex* /usr/bin/mf /usr/bin/kpse* /usr/bin/gft*  /usr/local/bin/
 COPY --from=builder /usr/share/texlive /usr/share/texlive
 COPY --from=builder /usr/share/tex-common /usr/share/tex-common
 COPY --from=builder /usr/share/texmf /usr/share/texmf
-
-
 
 COPY --from=tei /tmp/tei-publisher-app/build/*.xar /exist/autodeploy/
 COPY --from=tei /tmp/shakespeare/build/*.xar /exist/autodeploy/
