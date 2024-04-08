@@ -99,6 +99,9 @@ COPY --from=builder /usr/share/texlive /usr/share/texlive
 COPY --from=builder /usr/share/tex-common /usr/share/tex-common
 COPY --from=builder /usr/share/texmf /usr/share/texmf
 
+# Create a link to sh inside the /bin directory for LaTeX scripts.
+RUN ln -s /busybox/sh /bin/sh
+
 COPY --from=tei /tmp/tei-publisher-app/build/*.xar /exist/autodeploy/
 COPY --from=tei /tmp/shakespeare/build/*.xar /exist/autodeploy/
 COPY --from=tei /tmp/vangogh/build/*.xar /exist/autodeploy/
